@@ -1,0 +1,181 @@
+options {
+  IGNORE_CASE = false; // EasyScript distingue entre mayúsculas y minúsculas para sus variables
+  STATIC = false;
+}
+
+PARSER_BEGIN(EasyCompiler)
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+public class EasyCompiler {
+  public static void main(String args[]) {
+    try {
+          // Verificamos que al ejecutar envíen el nombre del archivo
+          if (args.length == 0) {
+            System.out.println("Error: Debes especificar un archivo. Ejemplo: java EasyCompiler codigo1.txt");
+            return;
+          }
+
+          // Abrimos el archivo de texto
+          FileInputStream archivo = new FileInputStream(args[0]);
+          EasyCompiler compilador = new EasyCompiler(archivo);
+
+          System.out.println("=== Iniciando analisis lexico de: " + args[0] + " ===");
+
+          // Le pedimos el primer token
+          Token token = compilador.getNextToken();
+
+          // Ciclo que se repite hasta llegar al final del archivo (EOF)
+          while (token.kind != EasyCompilerConstants.EOF) {
+
+            // Atrapamos TODOS los tokens trampa definidos en tu manual
+            if (token.kind == EasyCompilerConstants.ERROR_IDENTIFICADOR_INVALIDO) {
+                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn);
+                System.out.println("Detalle: Identificador no valido '" + token.image + "'");
+                System.out.println("Consejo: Toda variable debe comenzar con una letra mayuscula y no con numeros.\n");
+            }
+            else if (token.kind == EasyCompilerConstants.ERROR_TEXTO) {
+                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn);
+                System.out.println("Detalle: Cadena de texto sin cerrar.");
+            }
+            else if (token.kind == EasyCompilerConstants.ERROR_CARACTER) {
+                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn);
+                System.out.println("Detalle: Caracter sin cerrar con comillas simples.");
+            }
+            else if (token.kind == EasyCompilerConstants.ERROR_NUMERO_INVALIDO) {
+                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn);
+                System.out.println("Detalle: Formato de numero decimal invalido '" + token.image + "'");
+            }
+            else if (token.kind == EasyCompilerConstants.ERROR_SIMBOLO) {
+                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn);
+                System.out.println("Detalle: Simbolo no valido '" + token.image + "' en el lenguaje.");
+            }
+            else {
+                // Si es un token valido, lo imprimimos
+                System.out.println("Linea " + token.beginLine + " | Token leido: " + token.image);
+            }
+
+            // Avanzamos al siguiente token
+            token = compilador.getNextToken();
+          }
+
+          System.out.println("=== Analisis lexico finalizado ===");
+
+        } catch (FileNotFoundException e) {
+          System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
+        } catch (TokenMgrError e) {
+          // Si el usuario escribe un símbolo rarísimo que no definiste en ningún lado
+          System.out.println("Error critico del analizador: " + e.getMessage());
+        }
+  }
+}
+PARSER_END(EasyCompiler)
+
+SKIP : {
+  " " | "\t" | "\n" | "\r"
+  | < COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n") > // Ignora todo después de // hasta el salto de línea
+  | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */ 
+}
+
+TOKEN : {
+  // Flujo del programa 
+  < INICIO: "INICIO" > 
+| < FIN: "FIN" > 
+
+  // Tipos de datos 
+| < ENTERO: "ENT" > 
+| < DECIMAL: "DEC" > 
+| < BOOLEANO: "BOOL" > 
+| < CARACTER: "LETRA" > 
+| < TEXTO: "TXT" > 
+
+  // Condicionales y Ciclos 
+| < SI: "SI" > 
+| < CONTRARIO: "CONTRARIO" > 
+| < SINO: "SINO" >
+| < PARA: "PARA" > 
+| < MIENTRAS: "MIENTRAS" >
+
+  // Entrada y Salida
+| < LEER: "LEER" >
+| < IMPRIMIR: "IMPRIMIR" > 
+}
+
+TOKEN : {
+  // Operadores de Incremento y Decremento
+  < INCREMENTO: "++" > 
+| < DECREMENTO: "--" > 
+
+  // Operadores Aritméticos
+| < SUMA: "+" > 
+| < RESTA: "-" >
+| < MULTIPLICACION: "*" > 
+| < DIVISION: "/" >
+
+  // Operadores Adicionales
+| < MODULO: "%" > 
+| < EXPONENTE: "**" >
+
+// Operadores de comparación
+| < IGUAL_ASIGNACION: "=" > 
+| < IGUAL_COMPARACION: "==" >
+| < DIFERENTE: "!=" > 
+| < MENOR: "<" >
+| < MENOR_IGUAL: "<=" >
+| < MAYOR: ">" >
+| < MAYOR_IGUAL: ">=" >
+
+// Operadores Lógicos
+| < Y_LOGICO: "&&" > 
+| < O_LOGICO: "||" >
+| < NO_LOGICO: "!" > 
+
+  // Delimitadores 
+| < ABRIR_LLAVE: "{" > 
+| < CERRAR_LLAVE: "}" > 
+| < ABRIR_PARENTESIS: "(" > 
+| < CERRAR_PARENTESIS: ")" > 
+| < PUNTO_COMA: ";" > 
+}
+
+TOKEN : {
+  // Variables: Letra mayúscula seguida de minúsculas, puede terminar con números
+  < VARIABLE: ["A"-"Z"] (["a"-"z"])* (["0"-"9"])* > 
+
+  // Constantes: Inician con CONST_ seguido de estructura de variable
+| < CONSTANTE: "CONST_" ["A"-"Z"] (["a"-"z"])* (["0"-"9"])* >
+
+  // Números: Enteros y Decimales
+| < NUM_ENTERO: ("-")? (["0"-"9"])+ >
+| < NUM_DECIMAL: ("-")? (["0"-"9"])+ "." (["0"-"9"])+ >
+
+  // Cadenas de texto: Todo lo que esté entre comillas dobles
+| < CADENA: "\"" ( 
+      (~["\"","\\","\n","\r"]) // Acepta cualquier carácter normal excepto comillas, barras invertidas o saltos de línea físicos
+      | ("\\" ["n","t","r","\\","\""]) // O acepta una barra invertida seguida de n, t, r, \ o "
+  )* "\"" >
+}
+
+// === TOKENS DE ERROR ===
+TOKEN : {
+  // 1. Cadena no cerrada con comillas dobles
+  // Abre comillas, tiene texto, pero choca con un salto de línea antes de cerrar comillas.
+  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* ("\n" | "\r" | "\r\n") >
+
+  // 2. Carácter no cerrado con comillas simples
+  // Abre comilla simple, tiene contenido, pero choca con salto de línea antes de cerrar.
+| < ERROR_CARACTER: "'" (~["'","\n","\r"])* ("\n" | "\r" | "\r\n") >
+
+  // 3. Formato de número decimal inválido
+  // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
+| < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
+
+  // 4. Identificador inválido
+  // Atrapa identificadores que comienzan con número (ej. 9nombre)
+  // O que comienzan con minúscula (ya que tu manual exige mayúscula inicial).
+| < ERROR_IDENTIFICADOR_INVALIDO: (["0"-"9"] (["a"-"z","A"-"Z","0"-"9"])+) | (["a"-"z"] (["a"-"z","A"-"Z","0"-"9"])*) >
+
+  // 5. Símbolo no válido en el lenguaje
+  // Este es el comodín definitivo. El símbolo "~[]" significa "cualquier carácter". 
+  // Como está al final de todo, atrapará símbolos raros como @ o # que no encajaron en NINGUNA regla anterior.
+| < ERROR_SIMBOLO: ~[] >
+}

@@ -1,0 +1,10 @@
+INICIO{
+      ENT num1 = 5;
+      ENT num2 = 6;
+
+       IMPRIMIR("Resultado  de  suma"/n + (num1 + num2));
+       IMPRIMIR("Resultado  de  resta"/n + (num1 + num2));
+       IMPRIMIR("Resultado  de multiplicacion"/n + (num1 + num2));
+       IMPRIMIR("Resultado  de  division"/n + (num1 + num2));
+       IMPRIMIR("Resultado  de  modulo"/n + (num1 + num2));
+}FIN

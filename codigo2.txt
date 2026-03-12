@@ -1,0 +1,9 @@
+INICIO{
+    ENT numero = 14;
+
+    SI(numero % 2==0){
+        IMPRIMIR(numero + "es un numero par.");
+    }SINO{
+        IMPRIMIR(numero + "es un numero impar.");
+    }
+}FIN
