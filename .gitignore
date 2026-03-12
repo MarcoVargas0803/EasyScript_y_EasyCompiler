@@ -1,0 +1,8 @@
+*.class
+EasyCompiler.java
+EasyCompilerConstants.java
+EasyCompilerTokenManager.java
+ParseException.java
+SimpleCharStream.java
+Token.java
+TokenMgrError.java
