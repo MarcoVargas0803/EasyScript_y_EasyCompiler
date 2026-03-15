@@ -1,9 +1,11 @@
+
 options {
   IGNORE_CASE = false; // EasyScript distingue entre mayúsculas y minúsculas para sus variables
   STATIC = false;
 }
 
 PARSER_BEGIN(EasyCompiler)
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 public class EasyCompiler {
@@ -27,7 +29,7 @@ public class EasyCompiler {
           // Ciclo que se repite hasta llegar al final del archivo (EOF)
           while (token.kind != EasyCompilerConstants.EOF) {
 
-            // Atrapamos TODOS los tokens trampa definidos en tu manual
+            // Atrapamos TODOS los tokens trampa definidos
             if (token.kind == EasyCompilerConstants.ERROR_IDENTIFICADOR_INVALIDO) {
                 System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn);
                 System.out.println("Detalle: Identificador no valido '" + token.image + "'");
@@ -50,8 +52,16 @@ public class EasyCompiler {
                 System.out.println("Detalle: Simbolo no valido '" + token.image + "' en el lenguaje.");
             }
             else {
-                // Si es un token valido, lo imprimimos
-                System.out.println("Linea " + token.beginLine + " | Token leido: " + token.image);
+               // Obtenemos el nombre del tipo de token según JavaCC
+            String tipoToken = EasyCompilerConstants.tokenImage[token.kind];
+            
+            // Limpiamos el nombre para quitarle las comillas y los signos < >
+            //tipoToken = tipoToken.replace("\"", "").replace("<", "").replace(">", "");
+            
+            // Imprimimos con el formato <VALOR | TIPO>
+            //System.out.println(tipoToken);
+
+            System.out.println("# VALOR:  " + token.image + " | " + "TIPO: " + tipoToken + "  #");
             }
 
             // Avanzamos al siguiente token
@@ -63,7 +73,7 @@ public class EasyCompiler {
         } catch (FileNotFoundException e) {
           System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
         } catch (TokenMgrError e) {
-          // Si el usuario escribe un símbolo rarísimo que no definiste en ningún lado
+          // Si el usuario escribe un símbolo que no definimos
           System.out.println("Error critico del analizador: " + e.getMessage());
         }
   }
@@ -72,38 +82,44 @@ PARSER_END(EasyCompiler)
 
 SKIP : {
   " " | "\t" | "\n" | "\r"
-  | < COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n") > // Ignora todo después de // hasta el salto de línea
+  | < COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n") > // Ignora todo después de // hasta el salto de línea.
   | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */ 
 }
 
 TOKEN : {
   // Flujo del programa 
-  < INICIO: "INICIO" > 
-| < FIN: "FIN" > 
+  < INICIO_PROGRAMA: "INICIO" > 
+| < FIN_PROGRAMA: "FIN" > 
 
-  // Tipos de datos 
-| < ENTERO: "ENT" > 
-| < DECIMAL: "DEC" > 
-| < BOOLEANO: "BOOL" > 
-| < CARACTER: "LETRA" > 
-| < TEXTO: "TXT" > 
+  // Tipos de datos y estructuras de datos 
+| < ENTERO_DATO: "ENT" > 
+| < DECIMAL_DATO: "DEC" > 
+| < BOOLEANO_DATO: "BOOL" > 
+| < CARACTER_DATO: "LETRA" > 
+| < TEXTO_DATO: "TXT" > 
+| < ARREGLO_ESTRUCTURA: "ARREGLO" >
+| < MATRIZ_ESTRUCTURA: "MATRIZ" >
+| < SEGUN: "SEGUN" >    
+| < CASO: "CASO" >       
+| < DEFECTO: "DEFECTO" > 
+| < DETENER: "DETENER" > 
 
   // Condicionales y Ciclos 
-| < SI: "SI" > 
-| < CONTRARIO: "CONTRARIO" > 
-| < SINO: "SINO" >
-| < PARA: "PARA" > 
-| < MIENTRAS: "MIENTRAS" >
+| < SI_CONDICIONAL: "SI" > 
+| < SI_CONTRARIO: "CONTRARIO" > 
+| < SI_SINO: "SINO" >
+| < PARA_CICLO: "PARA" > 
+| < MIENTRAS_CICLO: "MIENTRAS" >
 
   // Entrada y Salida
-| < LEER: "LEER" >
-| < IMPRIMIR: "IMPRIMIR" > 
+| < LEER_FUNCION: "LEER" >
+| < IMPRIMIR_FUNCION: "IMPRIMIR" > 
 }
 
 TOKEN : {
   // Operadores de Incremento y Decremento
-  < INCREMENTO: "++" > 
-| < DECREMENTO: "--" > 
+  < INCREMENTO_AL_VALOR: "++" > 
+| < DECREMENTO_AL_VALOR: "--" > 
 
   // Operadores Aritméticos
 | < SUMA: "+" > 
@@ -134,25 +150,34 @@ TOKEN : {
 | < CERRAR_LLAVE: "}" > 
 | < ABRIR_PARENTESIS: "(" > 
 | < CERRAR_PARENTESIS: ")" > 
+| < ABRIR_CORCHETE: "[" > 
+| < CERRAR_CORCHETE: "]" >  
+| < COMA: "," >
+| < DOS_PUNTOS: ":" >
 | < PUNTO_COMA: ";" > 
 }
 
 TOKEN : {
-  // Variables: Letra mayúscula seguida de minúsculas, puede terminar con números
-  < VARIABLE: ["A"-"Z"] (["a"-"z"])* (["0"-"9"])* > 
 
-  // Constantes: Inician con CONST_ seguido de estructura de variable
-| < CONSTANTE: "CONST_" ["A"-"Z"] (["a"-"z"])* (["0"-"9"])* >
+  // Variables: Inician con mayúscula, seguido de cualquier combinación de letras, números o guion bajo.
+  < VARIABLE: ["A"-"Z"] (["a"-"z", "0"-"9", "_"])* >
+
+  // Constantes: Inician con CONST_ seguido de la estructura de variable.
+| < CONSTANTE: "CONST_" ["A"-"Z"] (["a"-"z", "0"-"9", "_"])* >
 
   // Números: Enteros y Decimales
-| < NUM_ENTERO: ("-")? (["0"-"9"])+ >
-| < NUM_DECIMAL: ("-")? (["0"-"9"])+ "." (["0"-"9"])+ >
+| < NUM_ENTERO: (["0"-"9"])+ >
+| < NUM_DECIMAL: ( (["0"-"9"])+ "." (["0"-"9"])+ ) | ( "." (["0"-"9"])+ ) >
+
 
   // Cadenas de texto: Todo lo que esté entre comillas dobles
 | < CADENA: "\"" ( 
       (~["\"","\\","\n","\r"]) // Acepta cualquier carácter normal excepto comillas, barras invertidas o saltos de línea físicos
-      | ("\\" ["n","t","r","\\","\""]) // O acepta una barra invertida seguida de n, t, r, \ o "
+        // O acepta una barra invertida seguida de n, t, r, \ o "
   )* "\"" >
+
+|  < VALOR_LETRA: "'" ["a"-"z", "A"-"Z"] "'" >
+
 }
 
 // === TOKENS DE ERROR ===
