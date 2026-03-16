@@ -27,12 +27,11 @@ INICIO{
       
       //Arreglos o matrices
 
-      ENT ARREGLO[] alumnos [9];
-      DEC ARREGLO[] temperatura {32.5,40.3,17.2,10.5};
-      ENT MATRIZ[][] matriz1 [3][4];
-      DEC MATRIZ[][] calificaciones {{7.5,2.4,8.0},{4.8,5.5,10.0}};
+      ENT ARREGLO[] Alumnos [9];
+      DEC ARREGLO[] Temperatura {32.5,40.3,17.2,10.5};
+      ENT MATRIZ[][] Matriz1 [3][4];
+      DEC MATRIZ[][] Calificaciones {{7.5,2.4,8.0},{4.8,5.5,10.0}};
        	   
-
       //Impresión a pantalla 
 
       IMPRIMIR("Este es un mensaje de ejemplo");
@@ -49,15 +48,36 @@ INICIO{
 
       //Prueba Condicional "SI"
 
-       IMPRIMIR("Resultado  de  suma \n" + (Num1 + Num2));
-       IMPRIMIR("Resultado  de  resta \n" + (Num1 + Num2));
-       IMPRIMIR("Resultado  de multiplicación \n" + (Num1 + Num2));
-       IMPRIMIR("Resultado  de  division \n" + (Num1 + Num2));
-       IMPRIMIR("Resultado  de  modulo \n" + (Num1 + Num2));
+       //Programa de edades
 
-      SI(Num1 > Num2){
-            IMPRIMIR("Hola mundo");
-      }CONTRARIO{
-            IMPRIMIR("No hay hola mundo para nadie")
+      ENT Edad_1 = 20; 
+      ENT Edad_2 = 17;
+
+      //Verificar quien es mayor de edad entre Edad_1 y Edad_2.
+
+      SI (Edad_1 > Edad_2){
+      IMPRIMIR("El mayor de edad es: "+Edad_1);
+      }SINO{
+      IMPRIMIR("El mayor de edad es: "+Edad_2);
+      }
+
+      //Verficar entre los 3 numeros cual es mayor.
+
+      ENT Numero_1 = 2;
+      ENT Numero_2 = 4;
+      ENT Numero_3 = 5;
+
+      SI (Numero_1 > Numero_2 && Numero_1 > Numero_3) {
+                        IMPRIMIR("Num1 es el mayor de los 3");
+                  } CONTRARIO (Numero_2 > Numero_1 && Numero_2 > Numero_3) {
+                        IMPRIMIR("Num2 es el mayor de los 3");
+                  } CONTRARIO (Numero_3 > Numero_1 && Numero_3 > Numero_2){
+                        IMPRIMIR("Num3 es el mayor de los 3");
+            }
+
+
+      
+      PARA (I=0; I<10; I++){
+      Variable_1 = Variable_1 + 1; 
       }
 }FIN
