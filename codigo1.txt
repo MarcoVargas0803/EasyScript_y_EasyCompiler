@@ -1,10 +1,83 @@
-INICIO{
-      ENT num1 = 5;
-      ENT num2 = 6;
+//Equipo 6
+/* Marco Antonio Vargas Valle 
+   Cesar Antonio Sanchez Herrera
+   Pacheco Angel Quintana
+*/ 
 
-       IMPRIMIR("Resultado  de  suma"/n + (num1 + num2));
-       IMPRIMIR("Resultado  de  resta"/n + (num1 + num2));
-       IMPRIMIR("Resultado  de multiplicacion"/n + (num1 + num2));
-       IMPRIMIR("Resultado  de  division"/n + (num1 + num2));
-       IMPRIMIR("Resultado  de  modulo"/n + (num1 + num2));
+/* 
+  Pruebas de variables, operaciones, estructuras de control. 
+*/
+
+//Inicio del programa
+INICIO{
+
+      //Prueba de variables y constantes
+      ENT Numero_1 = -10;
+      DEC Numero_con_punto_1_y_2_decimales = 10.5;
+      BOOL Es_numero = VERDADERO
+      LETRA Primera_Letra = 'a'
+      TXT Minombre = "Juanito"
+
+      DEC CONST_Pi = 3.1416
+      ENT CONST_Constante_x = -27
+
+      //Incremento o decremento 
+      Variable1 ++;
+      Variable1 --;
+      
+      //Arreglos o matrices
+
+      ENT ARREGLO[] Alumnos [9];
+      DEC ARREGLO[] Temperatura {32.5,40.3,17.2,10.5};
+      ENT MATRIZ[][] Matriz1 [3][4];
+      DEC MATRIZ[][] Calificaciones {{7.5,2.4,8.0},{4.8,5.5,10.0}};
+       	   
+      //Impresión a pantalla 
+
+      IMPRIMIR("Este es un mensaje de ejemplo");
+
+      IMPRIMIR(Variable1);
+
+      IMPRIMIR("Cantidad de materias:  " + CONST_Materias);     
+
+      //Lectura de datos
+
+      LEER(Variable1);
+
+      LEER("Ingresa el dato: "Variable1 )          
+
+      //Prueba Condicional "SI"
+
+       //Programa de edades
+
+      ENT Edad_1 = 20; 
+      ENT Edad_2 = 17;
+
+      //Verificar quien es mayor de edad entre Edad_1 y Edad_2.
+
+      SI (Edad_1 > Edad_2){
+      IMPRIMIR("El mayor de edad es: "+Edad_1);
+      }SINO{
+      IMPRIMIR("El mayor de edad es: "+Edad_2);
+      }
+
+      //Verficar entre los 3 numeros cual es mayor.
+
+      ENT Numero_1 = 2;
+      ENT Numero_2 = 4;
+      ENT Numero_3 = 5;
+
+      SI (Numero_1 > Numero_2 && Numero_1 > Numero_3) {
+                        IMPRIMIR("Num1 es el mayor de los 3");
+                  } CONTRARIO (Numero_2 > Numero_1 && Numero_2 > Numero_3) {
+                        IMPRIMIR("Num2 es el mayor de los 3");
+                  } CONTRARIO (Numero_3 > Numero_1 && Numero_3 > Numero_2){
+                        IMPRIMIR("Num3 es el mayor de los 3");
+            }
+
+
+      
+      PARA (I=0; I<10; I++){
+      Variable_1 = Variable_1 + 1; 
+      }
 }FIN
