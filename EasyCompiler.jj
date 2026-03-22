@@ -19,7 +19,7 @@ public class EasyCompiler {
 
   // Clase auxiliar para estrucuturar cada error. 
     static class ErrorLexico {
-      //string tipo = "Error Léxico";
+      String tipo = "Error Léxico";
       int linea;
       int columna;
       String detalle;
@@ -31,6 +31,8 @@ public class EasyCompiler {
           this.detalle = detalle;
           this.consejo = consejo;
       }
+
+    //Tener en cuenta que se puede generalizar la clase, ya que despues habra errores semanticos.
   }
   
   public static void main(String args[]) {
@@ -70,11 +72,11 @@ public class EasyCompiler {
                     "Cadena de texto sin cerrar.", 
                     "Cierra la cadena de texto con comillas dobles."));
             }
-            //3. ERROR_LONGITUD_CARACTER
+            //3. ERROR_LONGITUD_CARACTER_SIMBOLO_NO_VALIDO
             else if (token.kind == EasyCompilerConstants.ERROR_LONGITUD_CARACTER) {
                 listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
                     "Formato de caracter invalido: " + token.image, 
-                    "El tipo LETRA debe tener exactamente un (1) caracter."));
+                    "Longitud mayor a 1 o caracter no reconocido para LETRA."));
             }
             //4. ERROR_CARACTER
             else if (token.kind == EasyCompilerConstants.ERROR_CARACTER) {
@@ -104,7 +106,7 @@ public class EasyCompiler {
             else {
               
               String tipoToken = EasyCompilerConstants.tokenImage[token.kind];
-              System.out.println("# VALOR: " + token.image + " | TIPO: " + tipoToken + "  #");
+              System.out.println( token.image  + " | " + tipoToken );
             
             }
 
@@ -119,16 +121,16 @@ public class EasyCompiler {
           } else {
               // Dibujamos la cabecera de la tabla
               System.out.println("Total de errores detectados: " + listaErrores.size());
-              System.out.println("==================================================== TABLA DE ERRORES LÉXICOS ====================================================");
-              System.out.printf("| %-7s | %-9s | %-45s | %-50s |\n", "LINEA", "COLUMNA", "DETALLE DEL ERROR", "CONSEJO");
-              System.out.println("----------------------------------------------------------------------------------------------------------------------------------");
+              System.out.println("==================================================== TABLA DE ERRORES ==================================================================================");
+              System.out.printf("| %-15s | %-7s | %-9s | %-45s | %-60s |\n","TIPO", "LINEA", "COLUMNA", "DETALLE DEL ERROR", "CONSEJO");
+              System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------------------");
               
               // Recorremos la lista e imprimimos cada error con formato
               for (ErrorLexico error : listaErrores) {
-                  System.out.printf("| %-7d | %-9d | %-45s | %-50s |\n", error.linea, error.columna, error.detalle, error.consejo);
+                  System.out.printf("| %-15s | %-7d | %-9d | %-45s | %-60s |\n",error.tipo, error.linea, error.columna, error.detalle, error.consejo);
               }
               
-              System.out.println("==================================================================================================================================");
+              System.out.println("========================================================================================================================================================");
           }
 
         } catch (FileNotFoundException e) {

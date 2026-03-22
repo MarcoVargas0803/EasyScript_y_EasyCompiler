@@ -12,10 +12,11 @@
 INICIO{
 
       //Prueba de variables y constantes
-      ENT Numero_1 = -10;
+      ENT numero_1 = -10;
       DEC Numero_con_punto_1_y_2_decimales = 10.5;
       BOOL Es_numero = VERDADERO
-      LETRA Primera_Letra = 'a'
+      LETRA Primera_Letra = 'a
+      LETRA Primera_Letra = 'Hola'
       TXT Minombre = "Juanito"
 
       DEC CONST_Pi = 3.1416
@@ -34,7 +35,7 @@ INICIO{
        	   
       //Impresión a pantalla 
 
-      IMPRIMIR("Este es un mensaje de ejemplo");
+      IMPRIMIR("Este es un mensaje de ejemplo);
 
       IMPRIMIR(Variable1);
 
