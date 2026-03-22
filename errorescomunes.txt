@@ -1,0 +1,44 @@
+//Equipo 6
+/* Marco Antonio Vargas Valle 
+   Cesar Antonio Sanchez Herrera
+   Pacheco Angel Quintana
+*/ 
+
+/* 
+  Pruebas de errores comunes. 
+*/
+
+
+INICIO{
+
+  // ERROR: El tipo LETRA solo acepta un carácter, no una cadena
+  LETRA Calificacion = 'EX'; 
+  IMPRIMIR(Calificacion);
+
+  BOOL Es_valido = FALSO;
+  
+  // ERROR: Se usa '!' en lugar de '!!' para la negación
+  SI (! Es_valido) {
+    IMPRIMIR("Es falso");
+  }
+
+    ENT Peso_limite = 500;
+    LETRA Estatus = 'O';
+    
+    // ERROR LÉXICO 1: Identificador inválido.
+    ENT lecturaSensor = 450; 
+    
+    // ERROR LÉXICO 2: Operador lógico incompleto.
+    SI (! (lecturaSensor < Peso_limite)) {
+        IMPRIMIR("Alerta: Sobrepeso detectado");
+    }
+    
+    // ERROR LÉXICO 3: Literal de Carácter con longitud inválida
+    SI (lecturaSensor > 600) {
+        Estatus = 'RECHAZADO';
+        IMPRIMIR("Producto fuera de rango");
+    } SINO {
+        IMPRIMIR("Producto validado correctamente");
+    }
+
+}FIN
