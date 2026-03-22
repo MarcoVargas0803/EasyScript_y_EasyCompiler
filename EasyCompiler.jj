@@ -11,9 +11,28 @@ PARSER_BEGIN(EasyCompiler)
 //Importamos los archivos correspondientes para leer archivos y capturar errores.
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;  // Agregado para usar listas dinámicas
+import java.util.List;       // Agregado para usar listas dinámicas
 
 //Creamos una clase llamada EasyCompiler.
 public class EasyCompiler {
+
+  // Clase auxiliar para estrucuturar cada error. 
+    static class ErrorLexico {
+      //string tipo = "Error Léxico";
+      int linea;
+      int columna;
+      String detalle;
+      String consejo;
+
+      public ErrorLexico(int linea, int columna, String detalle, String consejo) {
+          this.linea = linea;
+          this.columna = columna;
+          this.detalle = detalle;
+          this.consejo = consejo;
+      }
+  }
+  
   public static void main(String args[]) {
     try {
           // Verificamos que al ejecutar envíen el nombre del archivo
@@ -28,68 +47,65 @@ public class EasyCompiler {
 
           System.out.println("=== Iniciando analisis lexico de: " + args[0] + " ===");
 
+          //Creamos ArrayList para los errores.
+          List<ErrorLexico> listaErrores = new ArrayList<>();
+
           // Le pedimos el primer token
           Token token = compilador.getNextToken();
 
           // Ciclo que se repite hasta llegar al final del archivo (EOF)
           while (token.kind != EasyCompilerConstants.EOF) {
 
-            // Atrapamos TODOS los tokens trampa definidos
+            // Atrapamos TODOS los tokens trampa definidos en el ArrayList
 
             //1. ERROR_IDENTIFICADOR_INVALIDO
             if (token.kind == EasyCompilerConstants.ERROR_IDENTIFICADOR_INVALIDO) {
-                System.out.println("Error léxico en linea " + token.beginLine + ", columna " + token.beginColumn + " | " + "Detalle: Identificador no valido '" + token.image + "'");
-                //System.out.println("Detalle: Identificador no valido '" + token.image + "'");
-                System.out.println("Consejo: Toda variable o constante debe comenzar con una letra mayuscula, ni tampoco debe empezar con numeros.\n");
+                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
+                    "Identificador no valido '" + token.image + "'", 
+                    "Toda variable/constante debe iniciar con mayuscula."));
             }
             //2. ERROR_TEXTO
             else if (token.kind == EasyCompilerConstants.ERROR_TEXTO) {
-                System.out.println("Error léxico en linea " + token.beginLine + ", columna " + token.beginColumn + " | "+ "Detalle: Cadena de texto sin cerrar." );
-                System.out.println("Consejo: Cierra la cadena de texto.");
+                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
+                    "Cadena de texto sin cerrar.", 
+                    "Cierra la cadena de texto con comillas dobles."));
             }
             //3. ERROR_LONGITUD_CARACTER
             else if (token.kind == EasyCompilerConstants.ERROR_LONGITUD_CARACTER) {
-                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn + " | " + "Detalle: Formato de caracter invalido o simbolo no permitido:" + token.image);
-                //System.out.println("Detalle: Formato de caracter invalido " + token.image);
-                System.out.println("Consejo: El tipo LETRA debe contener exactamente un (1) caracter y debe ser alfanumerico (letras o numeros).\n");
+                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
+                    "Formato de caracter invalido: " + token.image, 
+                    "El tipo LETRA debe tener exactamente un (1) caracter."));
             }
             //4. ERROR_CARACTER
             else if (token.kind == EasyCompilerConstants.ERROR_CARACTER) {
-                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn + " | " + "Detalle: Caracter sin cerrar con comillas simples.");
-                System.out.println("Consejo: Cierra el caracter con comillas simples.");
+                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
+                    "Caracter sin cerrar.", 
+                    "Cierra el caracter con comillas simples."));
             }
             //5. ERROR_NUMERO_INVALIDO
             else if (token.kind == EasyCompilerConstants.ERROR_NUMERO_INVALIDO) {
-                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn + " | "+ "Detalle: Formato de numero decimal invalido '" + token.image + "'");
-                //System.out.println("Detalle: Formato de numero decimal invalido '" + token.image + "'");
-                System.out.println("Consejo: Sigue la regla números decimales. Ejemplo: 3.1416..");
+                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
+                    "Formato decimal invalido '" + token.image + "'", 
+                    "Sigue la regla para decimales. Ejemplo: 3.1416"));
             }
             //6. ERROR_OPERADOR_INCOMPLETO
             else if (token.kind == EasyCompilerConstants.ERROR_OPERADOR_INCOMPLETO) {
-                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn + " | " + "Detalle: Operador incompleto o no valido: '" + token.image + "'");
-                //System.out.println("Mensaje: Operador incompleto o no valido: '" + token.image + "'");
-                //System.out.println("Detalle: Revisa que tus signos logicos esten bien escritos.");
-                System.out.println("Consejo: evisa que tus signos logicos esten bien escritos. En EasyScript los operadores deben ser dobles (ej. &&, ||, !!).\n");
+                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
+                    "Operador incompleto o no valido: '" + token.image + "'", 
+                    "Los operadores en EasyScript son dobles (&&, ||, !!)."));
             }
             //7. ERROR_SIMBOLO
             else if (token.kind == EasyCompilerConstants.ERROR_SIMBOLO) {
-                System.out.println("Error lexico en linea " + token.beginLine + ", columna " + token.beginColumn + " | " + "Detalle: Simbolo no valido '" + token.image + "' en el lenguaje." );
-                //System.out.println("Detalle: Simbolo no valido '" + token.image + "' en el lenguaje.");
-                System.out.println("Consejo: Asegurate de usar la simbología definida de EasyScript en el manual de usuario.");
+                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
+                    "Simbolo no valido '" + token.image + "'", 
+                    "Usa la simbologia definida en el manual de usuario."));
             }
-            
-            //En dado caso de no capturar errores. Se procede a la impresión del token.
+            // En caso de pedir los tokens correctos (Analisis Léxico)
             else {
-
-               // Obtenemos el nombre del tipo de token según JavaCC
-            String tipoToken = EasyCompilerConstants.tokenImage[token.kind];
+              
+              String tipoToken = EasyCompilerConstants.tokenImage[token.kind];
+              System.out.println("# VALOR: " + token.image + " | TIPO: " + tipoToken + "  #");
             
-            // Limpiamos el nombre para quitarle las comillas y los signos < >
-            //tipoToken = tipoToken.replace("\"", "").replace("<", "").replace(">", "");
-            
-            // Imprimimos con el formato # VALOR: Valor | TIPO: Tipo #
-
-            System.out.println("# VALOR: " + token.image + " | " + "TIPO: " + tipoToken + "  #");
             }
 
             // Avanzamos al siguiente token
@@ -97,6 +113,23 @@ public class EasyCompiler {
           }
 
           System.out.println("=== Analisis lexico finalizado ===");
+
+          if (listaErrores.isEmpty()) {
+              System.out.println(">> ¡Excelente! No se encontraron errores lexicos en el codigo fuente.");
+          } else {
+              // Dibujamos la cabecera de la tabla
+              System.out.println("Total de errores detectados: " + listaErrores.size());
+              System.out.println("==================================================== TABLA DE ERRORES LÉXICOS ====================================================");
+              System.out.printf("| %-7s | %-9s | %-45s | %-50s |\n", "LINEA", "COLUMNA", "DETALLE DEL ERROR", "CONSEJO");
+              System.out.println("----------------------------------------------------------------------------------------------------------------------------------");
+              
+              // Recorremos la lista e imprimimos cada error con formato
+              for (ErrorLexico error : listaErrores) {
+                  System.out.printf("| %-7d | %-9d | %-45s | %-50s |\n", error.linea, error.columna, error.detalle, error.consejo);
+              }
+              
+              System.out.println("==================================================================================================================================");
+          }
 
         } catch (FileNotFoundException e) {
           System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
