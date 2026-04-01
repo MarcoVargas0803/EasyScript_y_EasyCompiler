@@ -1,20 +1,11 @@
-//1. ERROR_IDENTIFICADOR_INVALIDO
-numero_1; 
-
-//2. ERROR_TEXTO
-"Hola mundo 
-
-//3. ERROR_LONGITUD_CARACTER (longitud mayor a 1 o simbolo no reconocido)
-'#1'
-
-//4. ERROR_CARACTER (No cerrar las comillas simples)
-'a 
-
-//5. ERROR_NUMERO_INVALIDO
-23.3.5
-
-//6. ERROR_OPERADOR_INCOMPLETO
-&
-
-//7. ERROR_SIMBOLO
-#
+INICIO {
+    // Declaración sin asignación
+    TXT Nombre;
+    
+    // Declaración con asignación
+    ENT Edad = 20;
+    DEC Estatura = 1.75;
+    BOOL Es_estudiante = VERDADERO;
+    LETRA Grupo = 'A';
+    CONST_Pi = 3.1416; // Constante
+}FIN

@@ -7,141 +7,15 @@ options {
 //Inicia el parser. 
 PARSER_BEGIN(EasyCompiler)
 
-
-//Importamos los archivos correspondientes para leer archivos y capturar errores.
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.util.ArrayList;  // Agregado para usar listas dinámicas
 import java.util.List;       // Agregado para usar listas dinámicas
 
-//Creamos una clase llamada EasyCompiler.
+
 public class EasyCompiler {
-
-  // Clase auxiliar para estrucuturar cada error. 
-    static class ErrorLexico {
-      String tipo = "Error Léxico";
-      int linea;
-      int columna;
-      String detalle;
-      String consejo;
-
-      public ErrorLexico(int linea, int columna, String detalle, String consejo) {
-          this.linea = linea;
-          this.columna = columna;
-          this.detalle = detalle;
-          this.consejo = consejo;
-      }
-
-    //Tener en cuenta que se puede generalizar la clase, ya que despues habra errores semanticos.
-  }
-  
-  public static void main(String args[]) {
-    try {
-          // Verificamos que al ejecutar envíen el nombre del archivo
-          if (args.length == 0) {
-            System.out.println("Error: Debes especificar un archivo. Ejemplo: java EasyCompiler codigo1.txt");
-            return;
-          }
-
-          // Abrimos el archivo de texto
-          FileInputStream archivo = new FileInputStream(args[0]);
-          EasyCompiler compilador = new EasyCompiler(archivo);
-
-          System.out.println("=== Iniciando analisis lexico de: " + args[0] + " ===");
-
-          //Creamos ArrayList para los errores.
-          List<ErrorLexico> listaErrores = new ArrayList<>();
-
-          // Le pedimos el primer token
-          Token token = compilador.getNextToken();
-
-          // Ciclo que se repite hasta llegar al final del archivo (EOF)
-          while (token.kind != EasyCompilerConstants.EOF) {
-
-            // Atrapamos TODOS los tokens trampa definidos en el ArrayList
-
-            //1. ERROR_IDENTIFICADOR_INVALIDO
-            if (token.kind == EasyCompilerConstants.ERROR_IDENTIFICADOR_INVALIDO) {
-                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
-                    "Identificador no valido '" + token.image + "'", 
-                    "Toda variable/constante debe iniciar con mayuscula."));
-            }
-            //2. ERROR_TEXTO
-            else if (token.kind == EasyCompilerConstants.ERROR_TEXTO) {
-                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
-                    "Cadena de texto sin cerrar.", 
-                    "Cierra la cadena de texto con comillas dobles."));
-            }
-            //3. ERROR_LONGITUD_CARACTER_SIMBOLO_NO_VALIDO
-            else if (token.kind == EasyCompilerConstants.ERROR_LONGITUD_CARACTER) {
-                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
-                    "Formato de caracter invalido: " + token.image, 
-                    "Longitud mayor a 1 o caracter no reconocido para LETRA."));
-            }
-            //4. ERROR_CARACTER
-            else if (token.kind == EasyCompilerConstants.ERROR_CARACTER) {
-                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
-                    "Caracter sin cerrar.", 
-                    "Cierra el caracter con comillas simples."));
-            }
-            //5. ERROR_NUMERO_INVALIDO
-            else if (token.kind == EasyCompilerConstants.ERROR_NUMERO_INVALIDO) {
-                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
-                    "Formato decimal invalido '" + token.image + "'", 
-                    "Sigue la regla para decimales. Ejemplo: 3.1416"));
-            }
-            //6. ERROR_OPERADOR_INCOMPLETO
-            else if (token.kind == EasyCompilerConstants.ERROR_OPERADOR_INCOMPLETO) {
-                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
-                    "Operador incompleto o no valido: '" + token.image + "'", 
-                    "Los operadores en EasyScript son dobles (&&, ||, !!)."));
-            }
-            //7. ERROR_SIMBOLO
-            else if (token.kind == EasyCompilerConstants.ERROR_SIMBOLO) {
-                listaErrores.add(new ErrorLexico(token.beginLine, token.beginColumn, 
-                    "Simbolo no valido '" + token.image + "'", 
-                    "Usa la simbologia definida en el manual de usuario."));
-            }
-            // En caso de pedir los tokens correctos (Analisis Léxico)
-            else {
-              
-              String tipoToken = EasyCompilerConstants.tokenImage[token.kind];
-              System.out.println( token.image  + " | " + tipoToken );
-            
-            }
-
-            // Avanzamos al siguiente token
-            token = compilador.getNextToken();
-          }
-
-          System.out.println("=== Analisis lexico finalizado ===");
-
-          if (listaErrores.isEmpty()) {
-              System.out.println(">> ¡Excelente! No se encontraron errores lexicos en el codigo fuente.");
-          } else {
-              // Dibujamos la cabecera de la tabla
-              System.out.println("Total de errores detectados: " + listaErrores.size());
-              System.out.println("==================================================== TABLA DE ERRORES ==================================================================================");
-              System.out.printf("| %-15s | %-7s | %-9s | %-45s | %-60s |\n","TIPO", "LINEA", "COLUMNA", "DETALLE DEL ERROR", "CONSEJO");
-              System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------------------");
-              
-              // Recorremos la lista e imprimimos cada error con formato
-              for (ErrorLexico error : listaErrores) {
-                  System.out.printf("| %-15s | %-7d | %-9d | %-45s | %-60s |\n",error.tipo, error.linea, error.columna, error.detalle, error.consejo);
-              }
-              
-              System.out.println("========================================================================================================================================================");
-          }
-
-        } catch (FileNotFoundException e) {
-          System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
-        } catch (TokenMgrError e) {
-          // Si el usuario escribe un símbolo que no definimos
-          System.out.println("Error critico del analizador: " + e.getMessage());
-        }
-  }
+  // Declaramos la lista de forma estática para que la clase Main pueda imprimirla al final
+    public static List<ErrorCompilador> listaErrores = new ArrayList<>();
 }
-//Finaliza la secuencia del Parser.
+
 PARSER_END(EasyCompiler)
 
 
@@ -154,6 +28,88 @@ SKIP : {
   " " | "\t" | "\n" | "\r"
   | < COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n") > // Ignora todo después de // hasta el salto de línea.
   | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */ 
+
+  //Captura de errores lexicos
+  //image.toString() : guarda el texto que hizo match.
+  //input_stream.getEndLine() : obtiene la línea exacta del error cuando estamos dentro de un SKIP.
+
+  // 1. Cadena no cerrada con comillas dobles
+  // Abre comillas, lee cualquier cosa que no sea cerrar comillas ni salto de línea.
+  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
+  {
+      // Acción Léxica: Esto se ejecuta al instante
+    EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
+                            "Cadena de texto sin cerrar.",
+                            "Cierra la cadena de texto con comillas dobles."));
+    }
+
+  // 2. Carácter no cerrado con comillas simples
+| < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+      EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
+                            "Caracter sin cerrar.",
+                            "Cierra el caracter con comillas simples."));
+    }
+
+  // 3. Formato de número decimal inválido
+  // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
+| < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
+                            "Formato decimal invalido '" + token.image + "'",
+                            "Sigue la regla para decimales. Ejemplo: 3.1416"));
+    }
+
+  // 4. Identificador inválido
+  // Atrapa identificadores que comienzan con número. ejemplo 9numero.
+  // O que comienzan con minúscula. ejemplo: numero.
+  // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.  
+
+| < ERROR_IDENTIFICADOR_INVALIDO: 
+      ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
+    | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
+    | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
+  >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
+                            "Identificador no valido '" + token.image + "'",
+                            "Toda variable/constante debe iniciar con mayuscula."));
+    }
+
+  // 5. Carácter con longitud invalida o caracter no definido
+  // Atrapa textos encerrados en comillas simples que tienen más de una letra (ej. 'Numero') o ninguna ('') o que no son definidas como $, #.
+| < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
+                            "Formato de caracter invalido: " + token.image,
+                            "Longitud mayor a 1 o caracter no reconocido para LETRA."));
+    }
+
+  // 6. Operadores lógicos incompletos o mal escritos
+  // Atrapa símbolos que deberían ir dobles en EasyScript pero se escribieron solos.
+| < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
+                            "Operador incompleto o no valido: '" + token.image + "'",
+                            "Los operadores en EasyScript son dobles (&&, ||, !!)."));
+    }
+
+  // 7. Símbolo no válido en el lenguaje
+  // Este es el comodín definitivo. El símbolo "~[]" significa "cualquier carácter". 
+  // Como está al final de todo, atrapará símbolos raros como @ o # que no encajaron en NINGUNA regla anterior.
+| < ERROR_SIMBOLO: ~[] >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
+                            "Simbolo no valido '" + token.image + "'",
+                            "Usa la simbologia definida en el manual de usuario."));
+    }
+
 }
 
 //Palabras/Simbolos Reservados
@@ -263,38 +219,271 @@ TOKEN : {
 // Tokens de Error
 
 TOKEN : {
-  // 1. Cadena no cerrada con comillas dobles
-  // Abre comillas, lee cualquier cosa que no sea cerrar comillas ni salto de línea.
-  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
+  
+}
 
-  // 2. Carácter no cerrado con comillas simples
-| < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
+/*
+  Análisis Sintactico
+*/
+// Sentencias adentro del los Tokens INICIO Y FIN.
+void Sentencias() :
+{}
+{
+    (
+        DeclaracionVariable()
+      | Imprimir()
+      | Leer()
+      | CondicionalSi()
+      | CondicionalSegun()
+      | BuclePara()
+    )*
+}
 
-  // 3. Formato de número decimal inválido
-  // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
-| < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
+void Programa() :
+{}
+{
+  try{
+    <INICIO_PROGRAMA> 
+    <ABRIR_LLAVE>
+    
+    Sentencias() // <-- ¡Llamamos a las sentencias aquí!
+    
+    <CERRAR_LLAVE> 
+    <FIN_PROGRAMA> 
+    <EOF>
+  }catch(ParseException e){
+    listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Estructura principal malformada.", 
+            "Todo código debe comenzar con INICIO { y terminar con } FIN."));
+            
+        // Como es la regla raíz, si falla gravemente, consumimos hasta el final del archivo
+        Token t;
+        do {
+            t = getNextToken();
+        } while (t.kind != EOF);
+  }
+    
+}
 
-  // 4. Identificador inválido
-  // Atrapa identificadores que comienzan con número. ejemplo 9numero.
-  // O que comienzan con minúscula. ejemplo: numero.
-  // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.  
+// Regla que agrupa los tipos de datos de EasyScript
 
-| < ERROR_IDENTIFICADOR_INVALIDO: 
-      ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
-    | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
-    | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
-  >
+void TipoDato() :
+{}
+{
+    <ENTERO_DATO> | <DECIMAL_DATO> | <BOOLEANO_DATO> | <CARACTER_DATO> | <TEXTO_DATO>
+}
 
-  // 5. Carácter con longitud invalida o caracter no definido
-  // Atrapa textos encerrados en comillas simples que tienen más de una letra (ej. 'Numero') o ninguna ('') o que no son definidas como $, #.
-| < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
+// Regla para los valores que puede tomar una variable
+void Valor() :
+{}
+{
+    <NUM_ENTERO> 
+  | <NUM_DECIMAL> 
+  | <CADENA> // Asumiendo que así llamaste al token de textos entre comillas dobles
+  | <VALOR_LETRA> // El token de caracteres entre comillas simples
+  | <VERDADERO_BOOLEANO> 
+  | <FALSO_BOOLEANO> 
+  | <VARIABLE>
+  | <CONSTANTE>
+}
 
-  // 6. Operadores lógicos incompletos o mal escritos
-  // Atrapa símbolos que deberían ir dobles en EasyScript pero se escribieron solos.
-| < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
+// Regla principal para declarar variables
+void DeclaracionVariable() :
+{}
+{
+    try {
+        TipoDato() 
+        <VARIABLE> 
+        ( <IGUAL_ASIGNACION> Valor() )? 
+        <PUNTO_COMA>  // Si falta esto, salta al catch
+    } catch (ParseException e) {
+        // Agregamos a la tabla de errores
+        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Falta el delimitador final de la sentencia ( ; ).", 
+            "Asegurate de terminar la declaracion de tu variable con un punto y coma."));
+            
+        // Se traga los tokens basura hasta encontrar el siguiente punto y coma para seguir compilando
+        Token t;
+        do {
+            t = getNextToken();
+        } while (t.kind != PUNTO_COMA && t.kind != EOF);
+    }
+}
 
-  // 7. Símbolo no válido en el lenguaje
-  // Este es el comodín definitivo. El símbolo "~[]" significa "cualquier carácter". 
-  // Como está al final de todo, atrapará símbolos raros como @ o # que no encajaron en NINGUNA regla anterior.
-| < ERROR_SIMBOLO: ~[] >
+/*
+  Gramatica para la impresión
+*/ 
+
+// Regla para lo que va dentro del IMPRIMIR ("texto" + variable)
+void ExpresionImprimir() :
+{}
+{
+    Valor() ( <SUMA> Valor() )*
+}
+
+// ==========================================
+// ENTRADA Y SALIDA (Con recuperación de errores)
+// ==========================================
+
+void Imprimir() :
+{}
+{
+    try {
+        <IMPRIMIR_FUNCION> <ABRIR_PARENTESIS> ExpresionImprimir() <CERRAR_PARENTESIS> <PUNTO_COMA>
+    } catch (ParseException e) {
+        // 1. Guardamos el error en la tabla
+        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Sintaxis incorrecta en IMPRIMIR.", 
+            "Asegúrate de usar la estructura IMPRIMIR(valor);"));
+            
+        // 2. Recuperación: Consumimos tokens basura hasta encontrar el punto y coma
+        Token t;
+        do {
+            t = getNextToken();
+        } while (t.kind != PUNTO_COMA && t.kind != EOF);
+    }
+}
+
+void Leer() :
+{}
+{
+    try {
+        <LEER_FUNCION> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <PUNTO_COMA>
+    } catch (ParseException e) {
+        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Sintaxis incorrecta en LEER.", 
+            "La estructura correcta es LEER(Variable);"));
+            
+        Token t;
+        do {
+            t = getNextToken();
+        } while (t.kind != PUNTO_COMA && t.kind != EOF);
+    }
+}
+
+// Operadores Relacionales (Asume que tienes estos tokens definidos)
+void OperadorRelacional() :
+{}
+{
+    <MAYOR> | <MENOR> | <IGUAL_COMPARACION> | <DIFERENTE> | <MAYOR_IGUAL> | <MENOR_IGUAL>
+}
+
+// Una condición simple: Variable > 5
+void Condicion() :
+{}
+{
+    Valor() OperadorRelacional() Valor()
+    // Aquí puedes expandirlo para incluir AND (&&) y OR (||) si tu lenguaje lo permite
+}
+
+// ==========================================
+// CONDICIONAL SI / CONTRARIO / SINO
+// ==========================================
+void CondicionalSi() :
+{}
+{
+    try{
+      <SI_CONDICIONAL> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE> 
+              Sentencias() 
+           <CERRAR_LLAVE>
+          
+      // El CONTRARIO (Else If) es opcional y puede repetirse (*)
+          (
+              <SI_CONTRARIO> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE> 
+                  Sentencias() 
+              <CERRAR_LLAVE>
+          )*
+          
+          // El SINO (Else) es opcional y solo aparece una vez (?)
+          (
+              <SI_SINO> <ABRIR_LLAVE> 
+                  Sentencias() 
+              <CERRAR_LLAVE>
+          )?
+    }catch(ParseException e){
+          // Agregamos el error a la tabla
+        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Condición ausente, malformada o bloque sin llaves en SI.", 
+            "Verifica que la condición lógica esté completa y encierra las sentencias entre { }."));
+            
+        // Recuperación de pánico: Buscar la llave de cierre para salir del bloque roto
+        Token t;
+        do {
+            t = getNextToken();
+        } while (t.kind != CERRAR_LLAVE && t.kind != EOF);
+
+    }
+    
+}
+
+// ==========================================
+// CONDICIONAL SEGUN (Switch)
+// ==========================================
+void CondicionalSegun() :
+{}
+{
+    try{
+    <SEGUN_CONDICIONAL> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <ABRIR_LLAVE>
+            
+            // Debe haber al menos un CASO (+)
+            (
+                <CASO_SEGUN> Valor() <DOS_PUNTOS> 
+                    Sentencias() 
+                <DETENER_SEGUN> <PUNTO_COMA>
+            )+
+            
+            // El DEFECTO es opcional (?)
+            (
+                <DEFECTO_SEGUN> <DOS_PUNTOS> 
+                    Sentencias()
+            )?
+        
+    <CERRAR_LLAVE>
+
+    }catch(ParseException e){
+            listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Estructura SEGUN incompleta o sintaxis inválida.", 
+            "El SEGUN requiere 'CASO valor:', finalizar cada caso con 'DETENER;' y cerrar llaves."));
+            
+        Token t;
+        do {
+            t = getNextToken();
+        } while (t.kind != CERRAR_LLAVE && t.kind != EOF);
+
+    }
+    
+}
+
+// ==========================================
+// BUCLE PARA
+// ==========================================
+void BuclePara() :
+{}
+{
+  try{
+    <PARA_CICLO> <ABRIR_PARENTESIS> 
+          // 1. Declaración inicial (Ej. ENT i = 0;)
+          DeclaracionVariable() 
+          
+          // 2. Condición (Ej. i < 10)
+          Condicion() <PUNTO_COMA>
+          
+          // 3. Incremento/Decremento (Asumiendo tokens como INCREMENTO para "++")
+          <VARIABLE> ( <INCREMENTO_AL_VALOR> | <DECREMENTO_AL_VALOR> )
+          
+    <CERRAR_PARENTESIS> <ABRIR_LLAVE>
+          Sentencias()
+    <CERRAR_LLAVE>
+  }catch(ParseException e){
+    listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Parámetros incompletos o inválidos en el ciclo PARA.", 
+            "El ciclo necesita 3 partes: Declaración ; Condición ; Incremento/Decremento."));
+            
+        Token t;
+        do {
+            t = getNextToken();
+        } while (t.kind != CERRAR_LLAVE && t.kind != EOF);
+    
+  }
+   
 }
