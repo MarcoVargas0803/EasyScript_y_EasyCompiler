@@ -10,19 +10,44 @@ PARSER_BEGIN(EasyCompiler)
 import java.util.ArrayList;  // Agregado para usar listas dinámicas
 import java.util.List;       // Agregado para usar listas dinámicas
 
-
 public class EasyCompiler {
   // Declaramos la lista de forma estática para que la clase Main pueda imprimirla al final
     public static List<ErrorCompilador> listaErrores = new ArrayList<>();
+
+// -----------------------------------------------------------------------
+    // MÉTODO AUXILIAR 1: Extrae línea y columna del token problemático de forma
+    // segura. e.currentToken.next puede ser null y provocar NullPointerException.
+    // -----------------------------------------------------------------------
+    private static int[] obtenerPosicion(ParseException e) {
+        Token t = (e.currentToken != null && e.currentToken.next != null)
+                ? e.currentToken.next
+                : e.currentToken;
+        // Si por alguna razón ambos son null devolvemos -1 para evitar crash
+        if (t == null) return new int[]{-1, -1};
+        return new int[]{t.beginLine, t.beginColumn};
+    }
+
+    // -----------------------------------------------------------------------
+    // MÉTODO AUXILIAR 2: Recuperación de pánico hasta ";" o "}" o EOF.
+    // Centraliza el patrón que se repetía en cada regla sintáctica.
+    // consumirPuntoYComa = true  → también consume el ";" al final (sentencias).
+    // consumirPuntoYComa = false → se detiene SIN consumirlo (útil en bloques).
+    // -----------------------------------------------------------------------
+    private void recuperarHasta(boolean consumirPuntoYComa) {
+        Token t = getToken(1);
+        while(t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF){
+            getNextToken();
+            t = getToken(1);
+        }
+        if (consumirPuntoYComa && t.kind == PUNTO_COMA) {
+            getNextToken();
+        }
+    }
 }
 
 PARSER_END(EasyCompiler)
 
-
-/*
-Definición de la léxica de EasyCompiler
-
-*/
+/* Análisis Léxico */
 
 SKIP : {
   " " | "\t" | "\n" | "\r"
@@ -30,11 +55,11 @@ SKIP : {
   | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */ 
 }
 
-//Palabras/Simbolos Reservados
+//Tokens Principales
 
 TOKEN : {
-  // Flujo del programa 
-  < INICIO_PROGRAMA: "INICIO" > 
+    //Flujo del programa
+  < INICIO_PROGRAMA: "INICIO" >
 | < FIN_PROGRAMA: "FIN" > 
 
   // Tipos de datos y estructuras de datos 
@@ -125,39 +150,28 @@ TOKEN : {
 
 
   // Cadenas de texto: Todo lo que esté entre comillas dobles
-| < CADENA: "\"" ( 
-      (~["\"","\\","\n","\r"]) // Acepta cualquier carácter normal excepto comillas, barras invertidas o saltos de línea físicos.
-      | ("\\" ["n","t","r","\\","\""]) // <-- O acepta secuencias de escape.
-  )* "\"" >
+| < CADENA: "\"" ( (~["\"","\\","\n","\r"]) // Acepta cualquier carácter normal excepto comillas, barras invertidas o saltos de línea físicos.
+                 | ("\\" ["n","t","r","\\","\""]) // <-- O acepta secuencias de escape.
+                 )* "\"" >
 
+  // Caracteres: Todo lo que esté entre comillas simples, pero solo un carácter válido o una secuencia de escape
 |  < VALOR_LETRA: "'" ["a"-"z", "A"-"Z", "0"-"9"] "'" >
-//Captura de errores lexicos
-    //image.toString() : guarda el texto que hizo match.
-    //input_stream.getEndLine() : obtiene la línea exacta del error cuando estamos dentro de un SKIP.
-    //input_stream.getEndColumn() : btiene la columna exacta del error cuando estamos dentro de un SKIP.
 
- /*
+   /* ERRORES LÉXICOS */
 
-  ERRORES LÉXICOS
-
- */    
-
-    // 1. Cadena no cerrada con comillas dobles
-    // Abre comillas, lee cualquier cosa que no sea cerrar comillas ni salto de línea.
-  |  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
+    // 1. Cadena de texto no cerrada
+|  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
 
     // 2. Carácter no cerrado con comillas simples
-  | < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
+| < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
 
     // 3. Formato de número decimal inválido
-    // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
-  | < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
+| < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
 
     // 4. Identificador inválido
     // Atrapa identificadores que comienzan con número. ejemplo 9numero.
     // O que comienzan con minúscula. ejemplo: numero.
-    // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.  
-
+    // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.
   | < ERROR_IDENTIFICADOR_INVALIDO: 
         ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
       | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
@@ -165,20 +179,18 @@ TOKEN : {
     >
 
     // 5. Carácter con longitud invalida o caracter no definido
-    // Atrapa textos encerrados en comillas simples que tienen más de una letra (ej. 'Numero') o ninguna ('') o que no son definidas como $, #.
   | < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
 
     // 6. Operadores lógicos incompletos o mal escritos
-    // Atrapa símbolos que deberían ir dobles en EasyScript pero se escribieron solos.
   | < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
 
 }
 
+// Manejo de error: Cualquier simbolo fuera del lenguaje.
+
 SKIP: {
 
   // 7. Símbolo no válido en el lenguaje
-  // Este es el comodín definitivo. El símbolo "~[]" significa "cualquier carácter". 
-  // Como está al final de todo, atrapará símbolos raros como @ o # que no encajaron en NINGUNA regla anterior.
  < ERROR_SIMBOLO: ~[] >
   {
         // Acción Léxica: Esto se ejecuta al instante
@@ -191,21 +203,64 @@ SKIP: {
 }
 
 
-/*
-  Análisis Sintactico
-*/
+/* Análisis Sintactico */
+
 // Sentencias adentro del los Tokens INICIO Y FIN.
 void Sentencias() :
 {}
 {
     (
         DeclaracionVariable()
+        /*
+        *   Ejemplo: ENT Numero = 5;
+        *
+        * */
+
+
       | Asignacion()
+      /*
+        *   Ejemplo: Numero = Numero + 1;
+       */
       | Imprimir()
+      /*
+        *   Ejemplo: IMPRIMIR("El numero es: " + Numero);
+       */
       | Leer()
+      /*
+        *   Ejemplo: LEER(Numero);
+       */
       | CondicionalSi()
+      /*
+         Ejemplo:
+         SI(Valor > 10) {
+            IMPRIMIR("Mayor a 10");
+         } CONTRARIO(Valor == 10) {
+            IMPRIMIR("Igual a 10");
+         } SINO {
+            IMPRIMIR("Menor a 10");
+         }
+       */
       | CondicionalSegun()
+      /*
+        Ejemplo:
+        SEGUN(Valor) {
+          CASO 1:
+            IMPRIMIR("Valor es 1");
+            DETENER;
+          CASO 2:
+            IMPRIMIR("Valor es 2");
+            DETENER;
+          DEFECTO:
+            IMPRIMIR("Valor no es ni 1 ni 2");
+        }
+       */
       | BuclePara()
+      /*
+        Ejemplo:
+        PARA(ENT I = 0; I < 10; I++) {
+          IMPRIMIR(I);
+        }
+       */
     )*
 }
 
@@ -213,24 +268,22 @@ void Programa() :
 {}
 {
   try{
-    <INICIO_PROGRAMA> 
+    <INICIO_PROGRAMA>
     <ABRIR_LLAVE>
-    
+
     Sentencias() // <-- ¡Llamamos a las sentencias aquí!
-    
-    <CERRAR_LLAVE> 
-    <FIN_PROGRAMA> 
+
+    <CERRAR_LLAVE>
+    <FIN_PROGRAMA>
     <EOF>
   }catch(ParseException e){
-    listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Estructura principal malformada.", 
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Estructura principal malformada.",
             "Todo código debe comenzar con INICIO { y terminar con } FIN."));
-            
-        // Como es la regla raíz, si falla gravemente, consumimos hasta el final del archivo
-        Token t;
-        do {
-            t = getNextToken();
-        } while (t.kind != EOF);
+
+        // Como es la regla raíz consumimos hasta EOF para no generar más ruido
+        while (getNextToken().kind != EOF) {}
   }
     
 }
@@ -332,43 +385,31 @@ void DeclaracionVariable() :
 }
 {
     try {
-        TipoDato() 
-        
+        TipoDato()
+
         // ¡AQUÍ ESTÁ EL CAMBIO! Aceptamos el identificador inválido
         ( id = <VARIABLE> | id = <CONSTANTE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
-        
+
         {
             // Validamos y guardamos el error léxico sin detener la compilación
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
-                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn, 
-                    "Identificador no valido '" + id.image + "'.", 
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
+                    "Identificador no valido '" + id.image + "'.",
                     "Toda variable/constante debe iniciar con mayúscula."));
             }
         }
-  
+
         ( <IGUAL_ASIGNACION> ExpresionAritmetica() )?
         <PUNTO_COMA>
 
 
 
     } catch (ParseException e) {
-        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Declaración inválida o incompleta.", 
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Declaración inválida o incompleta.",
             "Asegúrate de definir el tipo de dato, el nombre correctamente y terminar con un punto y coma."));
-            
-        // Recuperación inteligente: Miramos el siguiente token sin consumirlo
-        Token t = getToken(1);
-        
-        // Nos comemos la basura MIENTRAS NO sea un punto y coma, NO sea una llave de cierre y NO sea el final.
-        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
-            getNextToken(); // Consumimos la basura
-            t = getToken(1); // Volvemos a mirar el siguiente
-        }
-        
-        // Si nos detuvimos porque encontramos un punto y coma, lo consumimos para que no estorbe en la siguiente instrucción
-        if (t.kind == PUNTO_COMA) {
-            getNextToken();
-        }
+        recuperarHasta(true);
     }
 }
 
@@ -399,18 +440,11 @@ void Asignacion() :
         <PUNTO_COMA>
         
     } catch (ParseException e) {
-        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Sintaxis incorrecta en la asignación o incremento.", 
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Sintaxis incorrecta en la asignación o incremento.",
             "Asegúrate de asignar un valor válido y terminar con un punto y coma."));
-            
-        Token t = getToken(1);
-        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
-            getNextToken();
-            t = getToken(1);
-        }
-        if (t.kind == PUNTO_COMA) {
-            getNextToken();
-        }
+        recuperarHasta(true);
     }
 }
 
@@ -436,24 +470,11 @@ void Imprimir() :
     try {
         <IMPRIMIR_FUNCION> <ABRIR_PARENTESIS> ExpresionImprimir() <CERRAR_PARENTESIS> <PUNTO_COMA>
     } catch (ParseException e) {
-        // 1. Guardamos el error en la tabla
-        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Sintaxis incorrecta en IMPRIMIR.", 
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Sintaxis incorrecta en IMPRIMIR.",
             "Asegúrate de usar la estructura IMPRIMIR(valor);"));
-            
-        // Recuperación inteligente: Miramos el siguiente token sin consumirlo
-        Token t = getToken(1);
-        
-        // Nos comemos la basura MIENTRAS NO sea un punto y coma, NO sea una llave de cierre y NO sea el final.
-        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
-            getNextToken(); // Consumimos la basura
-            t = getToken(1); // Volvemos a mirar el siguiente
-        }
-        
-        // Si nos detuvimos porque encontramos un punto y coma, lo consumimos para que no estorbe en la siguiente instrucción
-        if (t.kind == PUNTO_COMA) {
-            getNextToken();
-        }
+        recuperarHasta(true);
     }
 }
 
@@ -463,23 +484,11 @@ void Leer() :
     try {
         <LEER_FUNCION> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <PUNTO_COMA>
     } catch (ParseException e) {
-        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Sintaxis incorrecta en LEER.", 
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Sintaxis incorrecta en LEER.",
             "La estructura correcta es LEER(Variable);"));
-            
-        // Recuperación inteligente: Miramos el siguiente token sin consumirlo
-        Token t = getToken(1);
-        
-        // Nos comemos la basura MIENTRAS NO sea un punto y coma, NO sea una llave de cierre y NO sea el final.
-        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
-            getNextToken(); // Consumimos la basura
-            t = getToken(1); // Volvemos a mirar el siguiente
-        }
-        
-        // Si nos detuvimos porque encontramos un punto y coma, lo consumimos para que no estorbe en la siguiente instrucción
-        if (t.kind == PUNTO_COMA) {
-            getNextToken();
-        }
+        recuperarHasta(true);
     }
 }
 
@@ -523,20 +532,16 @@ void CondicionalSi() :
               <CERRAR_LLAVE>
           )?
     }catch(ParseException e){
-          // Agregamos el error a la tabla
-        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Condición ausente, malformada o bloque sin llaves en SI.", 
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Condición ausente, malformada o bloque sin llaves en SI.",
             "Verifica que la condición lógica esté completa y encierra las sentencias entre { }."));
-            
-        // Recuperación de pánico: Buscar la llave de cierre para salir del bloque roto
-        Token t;
-        do {
-            t = getNextToken();
-        } while (t.kind != CERRAR_LLAVE && t.kind != EOF);
+        // consumirPuntoYComa = false → nos detenemos en "}" sin consumirlo
+        // para no romper el bloque padre.
+        recuperarHasta(false);
+  }
 
-    }
-    
-}
+
 
 // ==========================================
 // CONDICIONAL SEGUN (Switch)
@@ -563,15 +568,11 @@ void CondicionalSegun() :
     <CERRAR_LLAVE>
 
     }catch(ParseException e){
-            listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Estructura SEGUN incompleta o sintaxis inválida.", 
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Estructura SEGUN incompleta o sintaxis inválida.",
             "El SEGUN requiere 'CASO valor:', finalizar cada caso con 'DETENER;' y cerrar llaves."));
-            
-        Token t;
-        do {
-            t = getNextToken();
-        } while (t.kind != CERRAR_LLAVE && t.kind != EOF);
-
+        recuperarHasta(false);
     }
     
 }
@@ -597,15 +598,11 @@ void BuclePara() :
           Sentencias()
     <CERRAR_LLAVE>
   }catch(ParseException e){
-    listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Parámetros incompletos o inválidos en el ciclo PARA.", 
+    int[] pos = obtenerPosicion(e);
+    listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Parámetros incompletos o inválidos en el ciclo PARA.",
             "El ciclo necesita 3 partes: Declaración ; Condición ; Incremento/Decremento."));
-            
-        Token t;
-        do {
-            t = getNextToken();
-        } while (t.kind != CERRAR_LLAVE && t.kind != EOF);
-    
+    recuperarHasta(false);
   }
    
 }

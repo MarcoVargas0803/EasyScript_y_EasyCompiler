@@ -1,10 +1,13 @@
 INICIO {
-    IMPRIMIR("Iniciando cuenta regresiva:");
+    ENT Calificacion = 85;
 
-    // Ejemplo de un ciclo que se repite 5 veces
-    PARA (ENT I = 5; I > 0; I--) {
-        IMPRIMIR("Faltan " + I + " segundos...");
+    SI (Calificacion == 100) {
+        IMPRIMIR("¡Excelente! Tienes la calificación máxima.");
+    } 
+    CONTRARIO (Calificacion >= 70) {
+        IMPRIMIR("Aprobaste la materia.");
+    } 
+    SINO {
+        IMPRIMIR("Necesitas estudiar más para el examen de regularización.");
     }
-    
-    IMPRIMIR("¡Despegue!");
 } FIN
