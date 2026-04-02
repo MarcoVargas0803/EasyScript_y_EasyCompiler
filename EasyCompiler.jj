@@ -42,7 +42,42 @@ public class EasyCompiler {
         if (consumirPuntoYComa && t.kind == PUNTO_COMA) {
             getNextToken();
         }
-    }
+	}
+	// -----------------------------------------------------------------------
+    // MÉTODO AUXILIAR 3: Extrae qué token falló y qué tokens se esperaban.
+    // -----------------------------------------------------------------------
+        private static String obtenerDetalleSintactico(ParseException e) {
+            if (e.currentToken == null || e.currentToken.next == null) return "Error de sintaxis desconocido.";
+
+            // 1. Obtenemos lo que el compilador leyó por error
+            String tokenEncontrado = e.currentToken.next.image;
+            if (e.currentToken.next.kind == EOF) {
+                tokenEncontrado = "Fin del archivo";
+            }
+
+            // 2. Extraemos lo que JavaCC estaba esperando
+            StringBuilder tokensEsperados = new StringBuilder();
+            int maxSize = 0;
+
+            // JavaCC guarda las expectativas en un arreglo 2D
+            for (int i = 0; i < e.expectedTokenSequences.length; i++) {
+                if (maxSize < e.expectedTokenSequences[i].length) {
+                    maxSize = e.expectedTokenSequences[i].length;
+                }
+                for (int j = 0; j < e.expectedTokenSequences[i].length; j++) {
+                    // tokenImage traduce el ID del token a su texto real (ej. ";" o "<VARIABLE>")
+                    tokensEsperados.append(e.tokenImage[e.expectedTokenSequences[i][j]]).append(" ");
+                }
+                if (i < e.expectedTokenSequences.length - 1) {
+                    tokensEsperados.append(" o ");
+                }
+            }
+
+            // Limpiamos las comillas extrañas que pone JavaCC por defecto
+            String esperadosStr = tokensEsperados.toString().replace("\"", "");
+
+            return "Se encontró '" + tokenEncontrado + "', pero se esperaba: " + esperadosStr;
+        }
 }
 
 PARSER_END(EasyCompiler)
@@ -286,8 +321,11 @@ void Programa() :
     <EOF>
   }catch(ParseException e){
         int[] pos = obtenerPosicion(e);
+
+        String detalleDinamico = obtenerDetalleSintactico(e);
+
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Estructura principal malformada.",
+            detalleDinamico,
             "Todo código debe comenzar con INICIO { y terminar con } FIN."));
 
         // Como es la regla raíz consumimos hasta EOF para no generar más ruido
@@ -414,8 +452,11 @@ void DeclaracionVariable() :
 
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+
+        String detalleDinamico = obtenerDetalleSintactico(e);
+
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Declaración inválida o incompleta.",
+            detalleDinamico,
             "Asegúrate de definir el tipo de dato, el nombre correctamente y terminar con un punto y coma."));
         recuperarHasta(true);
     }
@@ -449,8 +490,10 @@ void Asignacion() :
 
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Sintaxis incorrecta en la asignación o incremento.",
+            detalleDinamico,
             "Asegúrate de asignar un valor válido y terminar con un punto y coma."));
         recuperarHasta(true);
     }
@@ -479,8 +522,9 @@ void Imprimir() :
         <IMPRIMIR_FUNCION> <ABRIR_PARENTESIS> ExpresionImprimir() <CERRAR_PARENTESIS> <PUNTO_COMA>
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Sintaxis incorrecta en IMPRIMIR.",
+            detalleDinamico,
             "Asegúrate de usar la estructura IMPRIMIR(valor);"));
         recuperarHasta(true);
     }
@@ -493,8 +537,9 @@ void Leer() :
         <LEER_FUNCION> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <PUNTO_COMA>
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Sintaxis incorrecta en LEER.",
+            detalleDinamico,
             "La estructura correcta es LEER(Variable);"));
         recuperarHasta(true);
     }
@@ -586,8 +631,10 @@ void CondicionalSi() :
           )?
     }catch(ParseException e){
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
+
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Condición ausente, malformada o bloque sin llaves en SI.",
+            detalleDinamico,
             "Verifica que la condición lógica esté completa y encierra las sentencias entre { }."));
         // consumirPuntoYComa = false → nos detenemos en "}" sin consumirlo
         // para no romper el bloque padre.
@@ -622,8 +669,9 @@ void CondicionalSegun() :
 
     }catch(ParseException e){
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Estructura SEGUN incompleta o sintaxis inválida.",
+            detalleDinamico,
             "El SEGUN requiere 'CASO valor:', finalizar cada caso con 'DETENER;' y cerrar llaves."));
         recuperarHasta(false);
     }
@@ -652,8 +700,9 @@ void BuclePara() :
     <CERRAR_LLAVE>
   }catch(ParseException e){
     int[] pos = obtenerPosicion(e);
+    String detalleDinamico = obtenerDetalleSintactico(e);
     listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Parámetros incompletos o inválidos en el ciclo PARA.",
+            detalleDinamico,
             "El ciclo necesita 3 partes: Declaración ; Condición ; Incremento/Decremento."));
     recuperarHasta(false);
   }
@@ -672,8 +721,9 @@ void BucleMientras() :
         <CERRAR_LLAVE>
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Estructura MIENTRAS incompleta o malformada.",
+            detalleDinamico,
             "El ciclo necesita la estructura: MIENTRAS ( Condicion ) { sentencias }."));
 
         // Falso para detenernos en la llave de cierre sin consumirla (protege el bloque padre)
