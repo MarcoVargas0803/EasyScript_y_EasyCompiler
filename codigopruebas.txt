@@ -1,11 +1,10 @@
-INICIO{
-    // Declaración sin asignación
-    TXT Nombre;
+INICIO {
+    IMPRIMIR("Iniciando cuenta regresiva:");
+
+    // Ejemplo de un ciclo que se repite 5 veces
+    PARA (ENT I = 5; I > 0; I--) {
+        IMPRIMIR("Faltan " + I + " segundos...");
+    }
     
-    // Declaración con asignación
-    ENT Edad = 20;
-    DEC Estatura = 1.75;
-    BOOL Es_estudiante = VERDADERO;
-    LETRA Grupo = 'A';
-    ENT Variable1 = 3.1416  //Constante
-}FIN
+    IMPRIMIR("¡Despegue!");
+} FIN

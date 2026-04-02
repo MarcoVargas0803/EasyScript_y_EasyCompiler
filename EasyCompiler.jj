@@ -131,86 +131,55 @@ TOKEN : {
   )* "\"" >
 
 |  < VALOR_LETRA: "'" ["a"-"z", "A"-"Z", "0"-"9"] "'" >
+//Captura de errores lexicos
+    //image.toString() : guarda el texto que hizo match.
+    //input_stream.getEndLine() : obtiene la línea exacta del error cuando estamos dentro de un SKIP.
+    //input_stream.getEndColumn() : btiene la columna exacta del error cuando estamos dentro de un SKIP.
+
+ /*
+
+  ERRORES LÉXICOS
+
+ */    
+
+    // 1. Cadena no cerrada con comillas dobles
+    // Abre comillas, lee cualquier cosa que no sea cerrar comillas ni salto de línea.
+  |  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
+
+    // 2. Carácter no cerrado con comillas simples
+  | < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
+
+    // 3. Formato de número decimal inválido
+    // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
+  | < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
+
+    // 4. Identificador inválido
+    // Atrapa identificadores que comienzan con número. ejemplo 9numero.
+    // O que comienzan con minúscula. ejemplo: numero.
+    // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.  
+
+  | < ERROR_IDENTIFICADOR_INVALIDO: 
+        ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
+      | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
+      | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
+    >
+
+    // 5. Carácter con longitud invalida o caracter no definido
+    // Atrapa textos encerrados en comillas simples que tienen más de una letra (ej. 'Numero') o ninguna ('') o que no son definidas como $, #.
+  | < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
+
+    // 6. Operadores lógicos incompletos o mal escritos
+    // Atrapa símbolos que deberían ir dobles en EasyScript pero se escribieron solos.
+  | < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
 
 }
 
 SKIP: {
 
-  //Captura de errores lexicos
-  //image.toString() : guarda el texto que hizo match.
-  //input_stream.getEndLine() : obtiene la línea exacta del error cuando estamos dentro de un SKIP.
-  //input_stream.getEndColumn() : btiene la columna exacta del error cuando estamos dentro de un SKIP.
-
-  // 1. Cadena no cerrada con comillas dobles
-  // Abre comillas, lee cualquier cosa que no sea cerrar comillas ni salto de línea.
-  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
-  {
-      // Acción Léxica: Esto se ejecuta al instante
-    EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
-                            "Cadena de texto sin cerrar.",
-                            "Cierra la cadena de texto con comillas dobles."));
-    }
-
-  // 2. Carácter no cerrado con comillas simples
-| < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-      EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
-                            "Caracter sin cerrar.",
-                            "Cierra el caracter con comillas simples."));
-    }
-
-  // 3. Formato de número decimal inválido
-  // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
-| < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
-                            "Formato decimal invalido '" + image.toString() + "'",
-                            "Sigue la regla para decimales. Ejemplo: 3.1416"));
-    }
-
-  // 4. Identificador inválido
-  // Atrapa identificadores que comienzan con número. ejemplo 9numero.
-  // O que comienzan con minúscula. ejemplo: numero.
-  // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.  
-
-| < ERROR_IDENTIFICADOR_INVALIDO: 
-      ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
-    | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
-    | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
-  >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
-                            "Identificador no valido '" + image.toString() + "'",
-                            "Toda variable/constante debe iniciar con mayuscula."));
-    }
-
-  // 5. Carácter con longitud invalida o caracter no definido
-  // Atrapa textos encerrados en comillas simples que tienen más de una letra (ej. 'Numero') o ninguna ('') o que no son definidas como $, #.
-| < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
-                            "Formato de caracter invalido: " + image.toString(),
-                            "Longitud mayor a 1 o caracter no reconocido para LETRA."));
-    }
-
-  // 6. Operadores lógicos incompletos o mal escritos
-  // Atrapa símbolos que deberían ir dobles en EasyScript pero se escribieron solos.
-| < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
-                            "Operador incompleto o no valido: '" + image.toString() + "'",
-                            "Los operadores en EasyScript son dobles (&&, ||, !!)."));
-    }
-
   // 7. Símbolo no válido en el lenguaje
   // Este es el comodín definitivo. El símbolo "~[]" significa "cualquier carácter". 
   // Como está al final de todo, atrapará símbolos raros como @ o # que no encajaron en NINGUNA regla anterior.
-| < ERROR_SIMBOLO: ~[] >
+ < ERROR_SIMBOLO: ~[] >
   {
         // Acción Léxica: Esto se ejecuta al instante
         EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
@@ -231,6 +200,7 @@ void Sentencias() :
 {
     (
         DeclaracionVariable()
+      | Asignacion()
       | Imprimir()
       | Leer()
       | CondicionalSi()
@@ -273,42 +243,177 @@ void TipoDato() :
     <ENTERO_DATO> | <DECIMAL_DATO> | <BOOLEANO_DATO> | <CARACTER_DATO> | <TEXTO_DATO>
 }
 
-// Regla para los valores que puede tomar una variable
+// Regla para los valores que puede tomar una variable (incluye tolerancia a errores)
 void Valor() :
-{}
+{
+  Token err;
+
+}
 {
     <NUM_ENTERO> 
   | <NUM_DECIMAL> 
-  | <CADENA> // Asumiendo que así llamaste al token de textos entre comillas dobles
-  | <VALOR_LETRA> // El token de caracteres entre comillas simples
+  | <CADENA>
+  | <VALOR_LETRA>
   | <VERDADERO_BOOLEANO> 
   | <FALSO_BOOLEANO> 
   | <VARIABLE>
   | <CONSTANTE>
+
+  /*
+    Atrapa errores Léxicos 
+  */
+  
+  | err = <ERROR_TEXTO>
+    {
+        // Acción Léxica: Esto se ejecuta al instante
+      EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                              "Cadena de texto sin cerrar.",
+                              "Cierra la cadena de texto con comillas dobles."));
+    }
+  | err = <ERROR_CARACTER>
+    {
+      // Acción Léxica: Esto se ejecuta al instante
+      EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                            "Caracter sin cerrar.",
+                            "Cierra el caracter con comillas simples."));
+      
+    }
+
+  | err = <ERROR_NUMERO_INVALIDO>
+  {
+          // Acción Léxica: Esto se ejecuta al instante
+          EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                              "Formato decimal invalido '" + err.image + "'",
+                              "Sigue la regla para decimales. Ejemplo: 3.1416"));
+      }
+
+  | err = <ERROR_IDENTIFICADOR_INVALIDO>
+  {
+          // Acción Léxica: Esto se ejecuta al instante
+          EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                              "Identificador no valido '" + err.image + "'",
+                              "Toda variable/constante debe iniciar con mayuscula."));
+      }
+  | err = <ERROR_LONGITUD_CARACTER>
+  {
+          // Acción Léxica: Esto se ejecuta al instante
+          EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                              "Formato de caracter invalido: " + err.image,
+                              "Longitud mayor a 1 o caracter no reconocido para LETRA."));
+      }
+  | err = <ERROR_OPERADOR_INCOMPLETO>
+  {
+          // Acción Léxica: Esto se ejecuta al instante
+          EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                              "Operador incompleto o no valido: '" + err.image + "'",
+                              "Los operadores en EasyScript son dobles (&&, ||, !!)."));
+      }
+
+}
+// ==========================================
+// EXPRESIONES MATEMÁTICAS
+// Ejemplo:  Numero = Numero + 1;
+// ==========================================
+void ExpresionAritmetica() :
+{}
+{
+    // Una expresión es al menos un Valor, seguido opcionalmente de operadores y más valores
+    Valor() 
+    ( 
+        ( <SUMA> | <RESTA> | <MULTIPLICACION> | <DIVISION> | <MODULO> | <EXPONENTE> ) 
+        Valor() 
+    )*
 }
 
 // Regla principal para declarar variables
 void DeclaracionVariable() :
-{}
+{
+  Token id; // Variable temporal para guardar el token
+}
 {
     try {
         TipoDato() 
-        <VARIABLE> 
-        ( <IGUAL_ASIGNACION> Valor() )? 
-        <PUNTO_COMA>  // Si falta esto, salta al catch
+        
+        // ¡AQUÍ ESTÁ EL CAMBIO! Aceptamos el identificador inválido
+        ( id = <VARIABLE> | id = <CONSTANTE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
+        
+        {
+            // Validamos y guardamos el error léxico sin detener la compilación
+            if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn, 
+                    "Identificador no valido '" + id.image + "'.", 
+                    "Toda variable/constante debe iniciar con mayúscula."));
+            }
+        }
+  
+        ( <IGUAL_ASIGNACION> ExpresionAritmetica() )?
+        <PUNTO_COMA>
+
+
+
     } catch (ParseException e) {
-        // Agregamos a la tabla de errores
         listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
-            "Falta el delimitador final de la sentencia ( ; ).", 
-            "Asegurate de terminar la declaracion de tu variable con un punto y coma."));
+            "Declaración inválida o incompleta.", 
+            "Asegúrate de definir el tipo de dato, el nombre correctamente y terminar con un punto y coma."));
             
-        // Se traga los tokens basura hasta encontrar el siguiente punto y coma para seguir compilando
-        Token t;
-        do {
-            t = getNextToken();
-        } while (t.kind != PUNTO_COMA && t.kind != EOF);
+        // Recuperación inteligente: Miramos el siguiente token sin consumirlo
+        Token t = getToken(1);
+        
+        // Nos comemos la basura MIENTRAS NO sea un punto y coma, NO sea una llave de cierre y NO sea el final.
+        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
+            getNextToken(); // Consumimos la basura
+            t = getToken(1); // Volvemos a mirar el siguiente
+        }
+        
+        // Si nos detuvimos porque encontramos un punto y coma, lo consumimos para que no estorbe en la siguiente instrucción
+        if (t.kind == PUNTO_COMA) {
+            getNextToken();
+        }
     }
 }
+
+// ==========================================
+// REGLA DE ASIGNACIÓN (Reasignar valores o Incrementar/Decrementar)
+// ==========================================
+void Asignacion() :
+{
+  Token id;
+}
+{
+    try {
+        ( id = <VARIABLE> | id = <CONSTANTE> | id = <ERROR_IDENTIFICADOR_INVALIDO> ) 
+        {
+          // Validamos qué fue lo que entró
+            if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn, 
+                    "Asignación incorrecta: Identificador no valido '" + id.image + "'.", 
+                    "Toda variable debe iniciar con mayúscula y no contener caracteres especiales."));
+          }
+        }
+        // Puede ser una asignación (= 5) o un incremento/decremento (++)
+        ( 
+            ( <IGUAL_ASIGNACION> ExpresionAritmetica() ) 
+          | <INCREMENTO_AL_VALOR> 
+          | <DECREMENTO_AL_VALOR> 
+        ) 
+        <PUNTO_COMA>
+        
+    } catch (ParseException e) {
+        listaErrores.add(new ErrorCompilador("Sintáctico", e.currentToken.next.beginLine, e.currentToken.next.beginColumn, 
+            "Sintaxis incorrecta en la asignación o incremento.", 
+            "Asegúrate de asignar un valor válido y terminar con un punto y coma."));
+            
+        Token t = getToken(1);
+        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
+            getNextToken();
+            t = getToken(1);
+        }
+        if (t.kind == PUNTO_COMA) {
+            getNextToken();
+        }
+    }
+}
+
 
 /*
   Gramatica para la impresión
@@ -336,11 +441,19 @@ void Imprimir() :
             "Sintaxis incorrecta en IMPRIMIR.", 
             "Asegúrate de usar la estructura IMPRIMIR(valor);"));
             
-        // 2. Recuperación: Consumimos tokens basura hasta encontrar el punto y coma
-        Token t;
-        do {
-            t = getNextToken();
-        } while (t.kind != PUNTO_COMA && t.kind != EOF);
+        // Recuperación inteligente: Miramos el siguiente token sin consumirlo
+        Token t = getToken(1);
+        
+        // Nos comemos la basura MIENTRAS NO sea un punto y coma, NO sea una llave de cierre y NO sea el final.
+        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
+            getNextToken(); // Consumimos la basura
+            t = getToken(1); // Volvemos a mirar el siguiente
+        }
+        
+        // Si nos detuvimos porque encontramos un punto y coma, lo consumimos para que no estorbe en la siguiente instrucción
+        if (t.kind == PUNTO_COMA) {
+            getNextToken();
+        }
     }
 }
 
@@ -354,10 +467,19 @@ void Leer() :
             "Sintaxis incorrecta en LEER.", 
             "La estructura correcta es LEER(Variable);"));
             
-        Token t;
-        do {
-            t = getNextToken();
-        } while (t.kind != PUNTO_COMA && t.kind != EOF);
+        // Recuperación inteligente: Miramos el siguiente token sin consumirlo
+        Token t = getToken(1);
+        
+        // Nos comemos la basura MIENTRAS NO sea un punto y coma, NO sea una llave de cierre y NO sea el final.
+        while (t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF) {
+            getNextToken(); // Consumimos la basura
+            t = getToken(1); // Volvemos a mirar el siguiente
+        }
+        
+        // Si nos detuvimos porque encontramos un punto y coma, lo consumimos para que no estorbe en la siguiente instrucción
+        if (t.kind == PUNTO_COMA) {
+            getNextToken();
+        }
     }
 }
 
