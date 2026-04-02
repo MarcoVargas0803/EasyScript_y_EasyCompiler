@@ -28,88 +28,6 @@ SKIP : {
   " " | "\t" | "\n" | "\r"
   | < COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n") > // Ignora todo después de // hasta el salto de línea.
   | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */ 
-
-  //Captura de errores lexicos
-  //image.toString() : guarda el texto que hizo match.
-  //input_stream.getEndLine() : obtiene la línea exacta del error cuando estamos dentro de un SKIP.
-
-  // 1. Cadena no cerrada con comillas dobles
-  // Abre comillas, lee cualquier cosa que no sea cerrar comillas ni salto de línea.
-  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
-  {
-      // Acción Léxica: Esto se ejecuta al instante
-    EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
-                            "Cadena de texto sin cerrar.",
-                            "Cierra la cadena de texto con comillas dobles."));
-    }
-
-  // 2. Carácter no cerrado con comillas simples
-| < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-      EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
-                            "Caracter sin cerrar.",
-                            "Cierra el caracter con comillas simples."));
-    }
-
-  // 3. Formato de número decimal inválido
-  // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
-| < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
-                            "Formato decimal invalido '" + token.image + "'",
-                            "Sigue la regla para decimales. Ejemplo: 3.1416"));
-    }
-
-  // 4. Identificador inválido
-  // Atrapa identificadores que comienzan con número. ejemplo 9numero.
-  // O que comienzan con minúscula. ejemplo: numero.
-  // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.  
-
-| < ERROR_IDENTIFICADOR_INVALIDO: 
-      ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
-    | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
-    | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
-  >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
-                            "Identificador no valido '" + token.image + "'",
-                            "Toda variable/constante debe iniciar con mayuscula."));
-    }
-
-  // 5. Carácter con longitud invalida o caracter no definido
-  // Atrapa textos encerrados en comillas simples que tienen más de una letra (ej. 'Numero') o ninguna ('') o que no son definidas como $, #.
-| < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
-                            "Formato de caracter invalido: " + token.image,
-                            "Longitud mayor a 1 o caracter no reconocido para LETRA."));
-    }
-
-  // 6. Operadores lógicos incompletos o mal escritos
-  // Atrapa símbolos que deberían ir dobles en EasyScript pero se escribieron solos.
-| < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
-                            "Operador incompleto o no valido: '" + token.image + "'",
-                            "Los operadores en EasyScript son dobles (&&, ||, !!)."));
-    }
-
-  // 7. Símbolo no válido en el lenguaje
-  // Este es el comodín definitivo. El símbolo "~[]" significa "cualquier carácter". 
-  // Como está al final de todo, atrapará símbolos raros como @ o # que no encajaron en NINGUNA regla anterior.
-| < ERROR_SIMBOLO: ~[] >
-  {
-        // Acción Léxica: Esto se ejecuta al instante
-        EasyCompiler.listaErrores.add(new ErrorCompilador(ErrorLexicoTipo, token.beginLine, token.beginColumn,
-                            "Simbolo no valido '" + token.image + "'",
-                            "Usa la simbologia definida en el manual de usuario."));
-    }
-
 }
 
 //Palabras/Simbolos Reservados
@@ -216,11 +134,93 @@ TOKEN : {
 
 }
 
-// Tokens de Error
+SKIP: {
 
-TOKEN : {
-  
+  //Captura de errores lexicos
+  //image.toString() : guarda el texto que hizo match.
+  //input_stream.getEndLine() : obtiene la línea exacta del error cuando estamos dentro de un SKIP.
+  //input_stream.getEndColumn() : btiene la columna exacta del error cuando estamos dentro de un SKIP.
+
+  // 1. Cadena no cerrada con comillas dobles
+  // Abre comillas, lee cualquier cosa que no sea cerrar comillas ni salto de línea.
+  < ERROR_TEXTO: "\"" (~["\"","\n","\r"])* >
+  {
+      // Acción Léxica: Esto se ejecuta al instante
+    EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+                            "Cadena de texto sin cerrar.",
+                            "Cierra la cadena de texto con comillas dobles."));
+    }
+
+  // 2. Carácter no cerrado con comillas simples
+| < ERROR_CARACTER: "'" (~["'","\n","\r"])* >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+      EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+                            "Caracter sin cerrar.",
+                            "Cierra el caracter con comillas simples."));
+    }
+
+  // 3. Formato de número decimal inválido
+  // Atrapa números con múltiples puntos decimales, ej. 3.14.15.
+| < ERROR_NUMERO_INVALIDO: (["0"-"9"])+ "." (["0"-"9"])+ ("." (["0"-"9"])+)+ >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+                            "Formato decimal invalido '" + image.toString() + "'",
+                            "Sigue la regla para decimales. Ejemplo: 3.1416"));
+    }
+
+  // 4. Identificador inválido
+  // Atrapa identificadores que comienzan con número. ejemplo 9numero.
+  // O que comienzan con minúscula. ejemplo: numero.
+  // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.  
+
+| < ERROR_IDENTIFICADOR_INVALIDO: 
+      ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
+    | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
+    | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
+  >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+                            "Identificador no valido '" + image.toString() + "'",
+                            "Toda variable/constante debe iniciar con mayuscula."));
+    }
+
+  // 5. Carácter con longitud invalida o caracter no definido
+  // Atrapa textos encerrados en comillas simples que tienen más de una letra (ej. 'Numero') o ninguna ('') o que no son definidas como $, #.
+| < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+                            "Formato de caracter invalido: " + image.toString(),
+                            "Longitud mayor a 1 o caracter no reconocido para LETRA."));
+    }
+
+  // 6. Operadores lógicos incompletos o mal escritos
+  // Atrapa símbolos que deberían ir dobles en EasyScript pero se escribieron solos.
+| < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+                            "Operador incompleto o no valido: '" + image.toString() + "'",
+                            "Los operadores en EasyScript son dobles (&&, ||, !!)."));
+    }
+
+  // 7. Símbolo no válido en el lenguaje
+  // Este es el comodín definitivo. El símbolo "~[]" significa "cualquier carácter". 
+  // Como está al final de todo, atrapará símbolos raros como @ o # que no encajaron en NINGUNA regla anterior.
+| < ERROR_SIMBOLO: ~[] >
+  {
+        // Acción Léxica: Esto se ejecuta al instante
+        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+                            "Simbolo no valido '" + image.toString() + "'",
+                            "Usa la simbologia definida en el manual de usuario."));
+    }
+
+
 }
+
 
 /*
   Análisis Sintactico

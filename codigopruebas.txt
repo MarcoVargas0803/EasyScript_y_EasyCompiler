@@ -1,4 +1,4 @@
-INICIO {
+INICIO{
     // Declaración sin asignación
     TXT Nombre;
     
@@ -7,5 +7,5 @@ INICIO {
     DEC Estatura = 1.75;
     BOOL Es_estudiante = VERDADERO;
     LETRA Grupo = 'A';
-    CONST_Pi = 3.1416; // Constante
+    ENT Variable1 = 3.1416  //Constante
 }FIN
