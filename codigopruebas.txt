@@ -1,13 +1,7 @@
-INICIO {
-    ENT Calificacion = 85;
-
-    SI (Calificacion == 100) {
-        IMPRIMIR("¡Excelente! Tienes la calificación máxima.");
-    } 
-    CONTRARIO (Calificacion >= 70) {
-        IMPRIMIR("Aprobaste la materia.");
-    } 
-    SINO {
-        IMPRIMIR("Necesitas estudiar más para el examen de regularización.");
-    }
-} FIN
+INICIO{
+     
+     MIENTRAS(!!Es_estudiante){
+        IMPRIMIR(Valor1);
+        }
+}FIN
+       

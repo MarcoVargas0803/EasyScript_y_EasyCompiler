@@ -4,7 +4,7 @@ options {
   STATIC = false;
 }
 
-//Inicia el parser. 
+//Inicia el parser.
 PARSER_BEGIN(EasyCompiler)
 
 import java.util.ArrayList;  // Agregado para usar listas dinámicas
@@ -52,7 +52,7 @@ PARSER_END(EasyCompiler)
 SKIP : {
   " " | "\t" | "\n" | "\r"
   | < COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n") > // Ignora todo después de // hasta el salto de línea.
-  | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */ 
+  | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */
 }
 
 //Tokens Principales
@@ -60,81 +60,81 @@ SKIP : {
 TOKEN : {
     //Flujo del programa
   < INICIO_PROGRAMA: "INICIO" >
-| < FIN_PROGRAMA: "FIN" > 
+| < FIN_PROGRAMA: "FIN" >
 
-  // Tipos de datos y estructuras de datos 
-| < ENTERO_DATO: "ENT" > 
-| < DECIMAL_DATO: "DEC" > 
-| < BOOLEANO_DATO: "BOOL" > 
-| < CARACTER_DATO: "LETRA" > 
-| < TEXTO_DATO: "TXT" > 
+  // Tipos de datos y estructuras de datos
+| < ENTERO_DATO: "ENT" >
+| < DECIMAL_DATO: "DEC" >
+| < BOOLEANO_DATO: "BOOL" >
+| < CARACTER_DATO: "LETRA" >
+| < TEXTO_DATO: "TXT" >
 | < ARREGLO_ESTRUCTURA: "ARREGLO" >
-| < MATRIZ_ESTRUCTURA: "MATRIZ" > 
+| < MATRIZ_ESTRUCTURA: "MATRIZ" >
 
   //Booleanos
 | <VERDADERO_BOOLEANO: "VERDADERO">
 | <FALSO_BOOLEANO: "FALSO">
 
-  // Condicionales y Ciclos 
-| < SI_CONDICIONAL: "SI" > 
-| < SI_CONTRARIO: "CONTRARIO" > 
+  // Condicionales y Ciclos
+| < SI_CONDICIONAL: "SI" >
+| < SI_CONTRARIO: "CONTRARIO" >
 | < SI_SINO: "SINO" >
-| < SEGUN_CONDICIONAL: "SEGUN" >    
-| < CASO_SEGUN: "CASO" >       
-| < DEFECTO_SEGUN: "DEFECTO" > 
+| < SEGUN_CONDICIONAL: "SEGUN" >
+| < CASO_SEGUN: "CASO" >
+| < DEFECTO_SEGUN: "DEFECTO" >
 | < DETENER_SEGUN: "DETENER" >
-| < PARA_CICLO: "PARA" > 
+| < PARA_CICLO: "PARA" >
 | < MIENTRAS_CICLO: "MIENTRAS" >
 
   // Entrada y Salida
 | < LEER_FUNCION: "LEER" >
-| < IMPRIMIR_FUNCION: "IMPRIMIR" > 
+| < IMPRIMIR_FUNCION: "IMPRIMIR" >
 }
 
-// Operadores reservados y delimitadores 
+// Operadores reservados y delimitadores
 
 TOKEN : {
   // Operadores de Incremento y Decremento
-  < INCREMENTO_AL_VALOR: "++" > 
-| < DECREMENTO_AL_VALOR: "--" > 
+  < INCREMENTO_AL_VALOR: "++" >
+| < DECREMENTO_AL_VALOR: "--" >
 
   // Operadores Aritméticos
-| < SUMA: "+" > 
+| < SUMA: "+" >
 | < RESTA: "-" >
-| < MULTIPLICACION: "*" > 
+| < MULTIPLICACION: "*" >
 | < DIVISION: "/" >
 
   // Operadores Adicionales
-| < MODULO: "%" > 
+| < MODULO: "%" >
 | < EXPONENTE: "**" >
 
 // Operadores de comparación
-| < IGUAL_ASIGNACION: "=" > 
+| < IGUAL_ASIGNACION: "=" >
 | < IGUAL_COMPARACION: "==" >
-| < DIFERENTE: "!=" > 
+| < DIFERENTE: "!=" >
 | < MENOR: "<" >
 | < MENOR_IGUAL: "<=" >
 | < MAYOR: ">" >
 | < MAYOR_IGUAL: ">=" >
 
 // Operadores Lógicos
-| < Y_LOGICO: "&&" > 
+| < Y_LOGICO: "&&" >
 | < O_LOGICO: "||" >
-| < NO_LOGICO: "!!" > 
+| < NO_LOGICO: "!!" >
 
-  // Delimitadores 
-| < ABRIR_LLAVE: "{" > 
-| < CERRAR_LLAVE: "}" > 
-| < ABRIR_PARENTESIS: "(" > 
-| < CERRAR_PARENTESIS: ")" > 
-| < ABRIR_CORCHETE: "[" > 
-| < CERRAR_CORCHETE: "]" >  
+  // Delimitadores
+| < ABRIR_LLAVE: "{" >
+| < CERRAR_LLAVE: "}" >
+| < ABRIR_PARENTESIS: "(" >
+| < CERRAR_PARENTESIS: ")" >
+| < ABRIR_CORCHETE: "[" >
+| < CERRAR_CORCHETE: "]" >
 | < COMA: "," >
 | < DOS_PUNTOS: ":" >
-| < PUNTO_COMA: ";" > 
+| < PUNTO_COMA: ";" >
 }
 
-// Expresiones Regulares para Variables, Constantes, Cadenas y Caracteres. 
+// Expresiones Regulares para Variables, Constantes, Cadenas y Caracteres.
 
 TOKEN : {
 
@@ -143,7 +143,7 @@ TOKEN : {
 
   // Constantes: Inician con CONST_ seguido de la estructura de variable
 | < CONSTANTE: "CONST_" ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* >
-  
+
   // Números: Enteros y Decimales
 | < NUM_ENTERO: (["0"-"9"])+ >
 | < NUM_DECIMAL: ( (["0"-"9"])+ "." (["0"-"9"])+ ) | ( "." (["0"-"9"])+ ) >
@@ -172,17 +172,18 @@ TOKEN : {
     // Atrapa identificadores que comienzan con número. ejemplo 9numero.
     // O que comienzan con minúscula. ejemplo: numero.
     // O que tengan más de una letra en mayuscula. ejemplo: PrimerNumero.
-  | < ERROR_IDENTIFICADOR_INVALIDO: 
-        ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ ) 
-      | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
-      | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* ) 
+  | < ERROR_IDENTIFICADOR_INVALIDO:
+        ( ["0"-"9"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])+ )
+      | ( ["a"-"z", "á","é","í","ó","ú","ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* )
+      | ( ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "0"-"9", "_", "á","é","í","ó","ú","ñ"])* ["A"-"Z", "Á","É","Í","Ó","Ú","Ñ"] (["a"-"z", "A"-"Z", "0"-"9", "_", "á","é","í","ó","ú","Á","É","Í","Ó","Ú","ñ","Ñ"])* )
     >
 
     // 5. Carácter con longitud invalida o caracter no definido
   | < ERROR_LONGITUD_CARACTER: "'" (~["'","\n","\r"])* "'" >
 
-    // 6. Operadores lógicos incompletos o mal escritos
-  | < ERROR_OPERADOR_INCOMPLETO: "!" | "&" | "|" >
+    // 6. Operadores lógicos incompletos (Separados por su función)
+      | < ERROR_LOGICO_INCOMPLETO: "&" | "|" >
+      | < ERROR_NEGACION_INCOMPLETA: "!" >
 
 }
 
@@ -261,6 +262,13 @@ void Sentencias() :
           IMPRIMIR(I);
         }
        */
+       | BucleMientras()
+       /*
+        Ejemplo:
+        MIENTRAS(Valor < 100) {
+          Valor = Valor * 2;
+        }
+       */
     )*
 }
 
@@ -285,7 +293,7 @@ void Programa() :
         // Como es la regla raíz consumimos hasta EOF para no generar más ruido
         while (getNextToken().kind != EOF) {}
   }
-    
+
 }
 
 // Regla que agrupa los tipos de datos de EasyScript
@@ -303,19 +311,20 @@ void Valor() :
 
 }
 {
-    <NUM_ENTERO> 
-  | <NUM_DECIMAL> 
+    <NUM_ENTERO>
+  | <NUM_DECIMAL>
   | <CADENA>
   | <VALOR_LETRA>
-  | <VERDADERO_BOOLEANO> 
-  | <FALSO_BOOLEANO> 
+
+  | <VERDADERO_BOOLEANO>
+  | <FALSO_BOOLEANO>
   | <VARIABLE>
   | <CONSTANTE>
 
   /*
-    Atrapa errores Léxicos 
+    Atrapa errores Léxicos
   */
-  
+
   | err = <ERROR_TEXTO>
     {
         // Acción Léxica: Esto se ejecuta al instante
@@ -329,7 +338,7 @@ void Valor() :
       EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
                             "Caracter sin cerrar.",
                             "Cierra el caracter con comillas simples."));
-      
+
     }
 
   | err = <ERROR_NUMERO_INVALIDO>
@@ -354,14 +363,13 @@ void Valor() :
                               "Formato de caracter invalido: " + err.image,
                               "Longitud mayor a 1 o caracter no reconocido para LETRA."));
       }
-  | err = <ERROR_OPERADOR_INCOMPLETO>
+  | err = <ERROR_LOGICO_INCOMPLETO>
   {
           // Acción Léxica: Esto se ejecuta al instante
           EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
                               "Operador incompleto o no valido: '" + err.image + "'",
                               "Los operadores en EasyScript son dobles (&&, ||, !!)."));
       }
-
 }
 // ==========================================
 // EXPRESIONES MATEMÁTICAS
@@ -371,10 +379,10 @@ void ExpresionAritmetica() :
 {}
 {
     // Una expresión es al menos un Valor, seguido opcionalmente de operadores y más valores
-    Valor() 
-    ( 
-        ( <SUMA> | <RESTA> | <MULTIPLICACION> | <DIVISION> | <MODULO> | <EXPONENTE> ) 
-        Valor() 
+    Valor()
+    (
+        ( <SUMA> | <RESTA> | <MULTIPLICACION> | <DIVISION> | <MODULO> | <EXPONENTE> )
+        Valor()
     )*
 }
 
@@ -422,23 +430,23 @@ void Asignacion() :
 }
 {
     try {
-        ( id = <VARIABLE> | id = <CONSTANTE> | id = <ERROR_IDENTIFICADOR_INVALIDO> ) 
+        ( id = <VARIABLE> | id = <CONSTANTE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
         {
           // Validamos qué fue lo que entró
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
-                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn, 
-                    "Asignación incorrecta: Identificador no valido '" + id.image + "'.", 
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
+                    "Asignación incorrecta: Identificador no valido '" + id.image + "'.",
                     "Toda variable debe iniciar con mayúscula y no contener caracteres especiales."));
           }
         }
         // Puede ser una asignación (= 5) o un incremento/decremento (++)
-        ( 
-            ( <IGUAL_ASIGNACION> ExpresionAritmetica() ) 
-          | <INCREMENTO_AL_VALOR> 
-          | <DECREMENTO_AL_VALOR> 
-        ) 
+        (
+            ( <IGUAL_ASIGNACION> ExpresionAritmetica() )
+          | <INCREMENTO_AL_VALOR>
+          | <DECREMENTO_AL_VALOR>
+        )
         <PUNTO_COMA>
-        
+
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
@@ -451,7 +459,7 @@ void Asignacion() :
 
 /*
   Gramatica para la impresión
-*/ 
+*/
 
 // Regla para lo que va dentro del IMPRIMIR ("texto" + variable)
 void ExpresionImprimir() :
@@ -500,11 +508,56 @@ void OperadorRelacional() :
 }
 
 // Una condición simple: Variable > 5
-void Condicion() :
-{}
+// ==========================================
+// CONDICIÓN SIMPLE (Ej. Numero > 5, VERDADERO, o !!EsEstudiante)
+// ==========================================
+void CondicionSimple() :
+{ Token err = null; }
 {
-    Valor() OperadorRelacional() Valor()
-    // Aquí puedes expandirlo para incluir AND (&&) y OR (||) si tu lenguaje lo permite
+    // 1. Opcional: Puede iniciar con la negación lógica (!!) o el error (!)
+    (
+        <NO_LOGICO>
+          | err = <ERROR_NEGACION_INCOMPLETA>
+             {
+                   EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                      "Operador de negación incompleto: '" + err.image + "'",
+                      "Para negar una condición en EasyScript debes usar '!!'."));
+        }
+    )?
+
+    // 2. El valor principal a evaluar
+    Valor()
+
+    // 3. Opcional: Operador relacional y segundo valor (Ej. > 5)
+    ( OperadorRelacional() Valor() )?
+}
+
+// ==========================================
+// CONDICIÓN COMPUESTA (Une múltiples CondicionSimple con && o ||)
+// ==========================================
+void Condicion() :
+{ Token err = null; }
+{
+    // Siempre debe haber al menos una condición simple
+    CondicionSimple()
+
+    // Cero o más veces, puede estar unida a otra por medio de AND / OR
+    (
+        // Leemos el operador (&&, ||) o el error de escribir solo (&, |)
+        (
+            <Y_LOGICO>
+          | <O_LOGICO>
+          | err = <ERROR_LOGICO_INCOMPLETO>
+            {
+                // Atrapamos el '&' o '|' solitario en tiempo real
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
+                    "Operador lógico incompleto: '" + err.image + "'",
+                    "Asegúrate de usar operadores dobles: && para 'Y', || para 'O'."));
+            }
+        )
+        // Y exigimos que después del operador venga otra condición
+        CondicionSimple()
+    )*
 }
 
 // ==========================================
@@ -514,21 +567,21 @@ void CondicionalSi() :
 {}
 {
     try{
-      <SI_CONDICIONAL> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE> 
-              Sentencias() 
+      <SI_CONDICIONAL> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE>
+              Sentencias()
            <CERRAR_LLAVE>
-          
+
       // El CONTRARIO (Else If) es opcional y puede repetirse (*)
           (
-              <SI_CONTRARIO> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE> 
-                  Sentencias() 
+              <SI_CONTRARIO> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE>
+                  Sentencias()
               <CERRAR_LLAVE>
           )*
-          
+
           // El SINO (Else) es opcional y solo aparece una vez (?)
           (
-              <SI_SINO> <ABRIR_LLAVE> 
-                  Sentencias() 
+              <SI_SINO> <ABRIR_LLAVE>
+                  Sentencias()
               <CERRAR_LLAVE>
           )?
     }catch(ParseException e){
@@ -540,7 +593,7 @@ void CondicionalSi() :
         // para no romper el bloque padre.
         recuperarHasta(false);
   }
-
+}
 
 
 // ==========================================
@@ -551,20 +604,20 @@ void CondicionalSegun() :
 {
     try{
     <SEGUN_CONDICIONAL> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <ABRIR_LLAVE>
-            
+
             // Debe haber al menos un CASO (+)
             (
-                <CASO_SEGUN> Valor() <DOS_PUNTOS> 
-                    Sentencias() 
+                <CASO_SEGUN> Valor() <DOS_PUNTOS>
+                    Sentencias()
                 <DETENER_SEGUN> <PUNTO_COMA>
             )+
-            
+
             // El DEFECTO es opcional (?)
             (
-                <DEFECTO_SEGUN> <DOS_PUNTOS> 
+                <DEFECTO_SEGUN> <DOS_PUNTOS>
                     Sentencias()
             )?
-        
+
     <CERRAR_LLAVE>
 
     }catch(ParseException e){
@@ -574,7 +627,7 @@ void CondicionalSegun() :
             "El SEGUN requiere 'CASO valor:', finalizar cada caso con 'DETENER;' y cerrar llaves."));
         recuperarHasta(false);
     }
-    
+
 }
 
 // ==========================================
@@ -584,16 +637,16 @@ void BuclePara() :
 {}
 {
   try{
-    <PARA_CICLO> <ABRIR_PARENTESIS> 
+    <PARA_CICLO> <ABRIR_PARENTESIS>
           // 1. Declaración inicial (Ej. ENT i = 0;)
-          DeclaracionVariable() 
-          
+          DeclaracionVariable()
+
           // 2. Condición (Ej. i < 10)
           Condicion() <PUNTO_COMA>
-          
+
           // 3. Incremento/Decremento (Asumiendo tokens como INCREMENTO para "++")
           <VARIABLE> ( <INCREMENTO_AL_VALOR> | <DECREMENTO_AL_VALOR> )
-          
+
     <CERRAR_PARENTESIS> <ABRIR_LLAVE>
           Sentencias()
     <CERRAR_LLAVE>
@@ -604,5 +657,26 @@ void BuclePara() :
             "El ciclo necesita 3 partes: Declaración ; Condición ; Incremento/Decremento."));
     recuperarHasta(false);
   }
-   
+
+}
+
+// ==========================================
+// BUCLE MIENTRAS
+// ==========================================
+void BucleMientras() :
+{}
+{
+    try {
+        <MIENTRAS_CICLO> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE>
+            Sentencias()
+        <CERRAR_LLAVE>
+    } catch (ParseException e) {
+        int[] pos = obtenerPosicion(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            "Estructura MIENTRAS incompleta o malformada.",
+            "El ciclo necesita la estructura: MIENTRAS ( Condicion ) { sentencias }."));
+
+        // Falso para detenernos en la llave de cierre sin consumirla (protege el bloque padre)
+        recuperarHasta(false);
+    }
 }
