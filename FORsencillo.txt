@@ -1,0 +1,8 @@
+INICIO{
+      IMPRIMIR("Hasta que numero quiere contar hoy?");
+      ENT n = 5;
+
+      PARA(ENT I=0;I<n;I++){
+      IMPRIMIR("I");
+      }
+}FIN
