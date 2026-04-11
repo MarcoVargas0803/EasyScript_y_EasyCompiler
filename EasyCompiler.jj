@@ -513,6 +513,80 @@ void DeclaracionVariable() :
 }
 
 // ==========================================
+// DECLARACIÓN DE ARREGLOS
+// Ejemplo: ARREGLO ENT Calificaciones[10];
+// ==========================================
+void DeclaracionArreglo() :
+{ Token id; }
+{
+    try {
+        <ARREGLO_ESTRUCTURA> TipoDato() 
+        
+        ( id = <VARIABLE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
+        {
+            if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
+                    "Identificador no valido '" + id.image + "'.",
+                    "Toda variable debe iniciar con mayúscula."));
+            }
+        }
+        
+        // El tamaño del arreglo va entre corchetes
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+
+        //Inicialización del Arreglo Opcional
+        (
+        <IGUAL_ASIGNACION> <ABRIR_LLAVE> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_LLAVE> )?
+
+        <PUNTO_COMA>
+    } catch (ParseException e) {
+        int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            detalleDinamico,
+            "Estructura inválida. Usa: ARREGLO Tipo Nombre[Tamaño];"));
+        recuperarHasta(true);
+    }
+}
+
+// ==========================================
+// DECLARACIÓN DE MATRICES
+// Ejemplo: MATRIZ DEC Tablero[5][5];
+// ==========================================
+void DeclaracionMatriz() :
+{ Token id; }
+{
+    try {
+        <MATRIZ_ESTRUCTURA> TipoDato() 
+        
+        ( id = <VARIABLE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
+        {
+            if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
+                    "Identificador no valido '" + id.image + "'.",
+                    "Toda variable debe iniciar con mayúscula."));
+            }
+        }
+        
+        // Las matrices requieren dos dimensiones
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> 
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+
+        ( <IGUAL_ASIGNACION> <ABRIR_PARENTESIS> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_PARENTESIS>)?
+        <PUNTO_COMA>
+
+    } catch (ParseException e) {
+        int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            detalleDinamico,
+            "Estructura inválida. Usa: MATRIZ Tipo Nombre[Filas][Columnas];"));
+        recuperarHasta(true);
+    }
+}
+
+
+// ==========================================
 // REGLA DE ASIGNACIÓN (Reasignar valores o Incrementar/Decrementar)
 // ==========================================
 void Asignacion() :
