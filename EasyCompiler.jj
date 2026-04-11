@@ -78,7 +78,14 @@ public class EasyCompiler {
 
             return "Se encontró '" + tokenEncontrado + "', pero se esperaba: " + esperadosStr;
         }
-}
+
+        private void agregarError(String tipo, Token token, String mensaje, String sugerencia) {
+            if (token != null) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador(tipo, token.beginLine, token.beginColumn, mensaje, sugerencia));
+            } else {
+                EasyCompiler.listaErrores.add(new ErrorCompilador(tipo, -1, -1, mensaje, sugerencia));
+            }
+        }
 
 PARSER_END(EasyCompiler)
 
@@ -251,7 +258,8 @@ void Sentencias() :
         *   Ejemplo: ENT Numero = 5;
         *
         * */
-
+      |  DeclaracionArreglo()
+      |  DeclaracionMatriz()
 
       | Asignacion()
       /*
@@ -369,6 +377,9 @@ void Valor() :
       EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
                               "Cadena de texto sin cerrar.",
                               "Cierra la cadena de texto con comillas dobles."));
+
+	  agregarError("Léxico", err, "Cadena de texto sin cerrar.", "Cierra la cadena de texto con comillas dobles.");
+
     }
   | err = <ERROR_CARACTER>
     {
@@ -416,12 +427,51 @@ void Valor() :
 void ExpresionAritmetica() :
 {}
 {
-    // Una expresión es al menos un Valor, seguido opcionalmente de operadores y más valores
+    ExpresionNivel1()
+}
+
+// Level 1: Handles addition and subtraction
+void ExpresionNivel1() :
+{}
+{
+    ExpresionNivel2()
+    (
+        ( <SUMA> | <RESTA> )
+        ExpresionNivel2()
+    )*
+}
+
+// Level 2: Handles multiplication, division, and modulo
+void ExpresionNivel2() :
+{}
+{
+    ExpresionNivel3()
+    (
+        ( <MULTIPLICACION> | <DIVISION> | <MODULO> )
+        ExpresionNivel3()
+    )*
+}
+
+// Level 3: Handles exponentiation
+void ExpresionNivel3() :
+{}
+{
+    ExpresionNivel4()
+    (
+        <EXPONENTE>
+        ExpresionNivel4()
+    )*
+}
+
+// Level 4: Handles values and optional array/matrix indexing
+void ExpresionNivel4() :
+{}
+{
     Valor()
     (
-        ( <SUMA> | <RESTA> | <MULTIPLICACION> | <DIVISION> | <MODULO> | <EXPONENTE> )
-        Valor()
-    )*
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+        ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )?
+    )?
 }
 
 // Regla principal para declarar variables
@@ -480,6 +530,12 @@ void Asignacion() :
                     "Toda variable debe iniciar con mayúscula y no contener caracteres especiales."));
           }
         }
+        //Soporte opcional para acceder a índices de arreglos o matrices
+        (
+                    <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+                    ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )? // El segundo es opcional (para matrices)
+                )?
+
         // Puede ser una asignación (= 5) o un incremento/decremento (++)
         (
             ( <IGUAL_ASIGNACION> ExpresionAritmetica() )
