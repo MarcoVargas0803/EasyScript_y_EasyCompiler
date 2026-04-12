@@ -1,6 +1,6 @@
 INICIO{
-    ARREGLO DEC Calificaciones[5];
-    Suma = "Hola Mundo" + 5;
-    ARREGLO DEC Calificaciones[5+5] = {8.5, 9.0, 7.5, 10.0, 8.0};
+    ARREGLO  Calificaciones[5]
+    Suma = "Hola Mundo" 5;
+    ARREGLO DEC Calificaciones[5+5] = {8.5, 9.0, 7.5, 10.0, 8.0;
 
 }FIN
