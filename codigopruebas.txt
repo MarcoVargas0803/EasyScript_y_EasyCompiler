@@ -1,6 +1,6 @@
 INICIO{
      
-     MIENTRAS(!!Es_estudiante){
+     MIENTRAS(Valor == 10){
         IMPRIMIR(Valor1);
         }
 }FIN

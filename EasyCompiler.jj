@@ -42,7 +42,50 @@ public class EasyCompiler {
         if (consumirPuntoYComa && t.kind == PUNTO_COMA) {
             getNextToken();
         }
-    }
+	}
+	// -----------------------------------------------------------------------
+    // MÉTODO AUXILIAR 3: Extrae qué token falló y qué tokens se esperaban.
+    // -----------------------------------------------------------------------
+        private static String obtenerDetalleSintactico(ParseException e) {
+            if (e.currentToken == null || e.currentToken.next == null) return "Error de sintaxis desconocido.";
+
+            // 1. Obtenemos lo que el compilador leyó por error
+            String tokenEncontrado = e.currentToken.next.image;
+            if (e.currentToken.next.kind == EOF) {
+                tokenEncontrado = "Fin del archivo";
+            }
+
+            // 2. Extraemos lo que JavaCC estaba esperando
+            StringBuilder tokensEsperados = new StringBuilder();
+            int maxSize = 0;
+
+            // JavaCC guarda las expectativas en un arreglo 2D
+            for (int i = 0; i < e.expectedTokenSequences.length; i++) {
+                if (maxSize < e.expectedTokenSequences[i].length) {
+                    maxSize = e.expectedTokenSequences[i].length;
+                }
+                for (int j = 0; j < e.expectedTokenSequences[i].length; j++) {
+                    // tokenImage traduce el ID del token a su texto real (ej. ";" o "<VARIABLE>")
+                    tokensEsperados.append(e.tokenImage[e.expectedTokenSequences[i][j]]).append(" ");
+                }
+                if (i < e.expectedTokenSequences.length - 1) {
+                    tokensEsperados.append(" o ");
+                }
+            }
+
+            // Limpiamos las comillas extrañas que pone JavaCC por defecto
+            String esperadosStr = tokensEsperados.toString().replace("\"", "");
+
+            return "Se encontró '" + tokenEncontrado + "', pero se esperaba: " + esperadosStr;
+        }
+
+        private void agregarError(String tipo, Token token, String mensaje, String sugerencia) {
+            if (token != null) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador(tipo, token.beginLine, token.beginColumn, mensaje, sugerencia));
+            } else {
+                EasyCompiler.listaErrores.add(new ErrorCompilador(tipo, -1, -1, mensaje, sugerencia));
+            }
+        }
 }
 
 PARSER_END(EasyCompiler)
@@ -216,7 +259,8 @@ void Sentencias() :
         *   Ejemplo: ENT Numero = 5;
         *
         * */
-
+      |  DeclaracionArreglo()
+      |  DeclaracionMatriz()
 
       | Asignacion()
       /*
@@ -286,8 +330,11 @@ void Programa() :
     <EOF>
   }catch(ParseException e){
         int[] pos = obtenerPosicion(e);
+
+        String detalleDinamico = obtenerDetalleSintactico(e);
+
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Estructura principal malformada.",
+            detalleDinamico,
             "Todo código debe comenzar con INICIO { y terminar con } FIN."));
 
         // Como es la regla raíz consumimos hasta EOF para no generar más ruido
@@ -331,6 +378,9 @@ void Valor() :
       EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
                               "Cadena de texto sin cerrar.",
                               "Cierra la cadena de texto con comillas dobles."));
+
+	  agregarError("Léxico", err, "Cadena de texto sin cerrar.", "Cierra la cadena de texto con comillas dobles.");
+
     }
   | err = <ERROR_CARACTER>
     {
@@ -378,12 +428,51 @@ void Valor() :
 void ExpresionAritmetica() :
 {}
 {
-    // Una expresión es al menos un Valor, seguido opcionalmente de operadores y más valores
+    ExpresionNivel1()
+}
+
+// Level 1: Handles addition and subtraction
+void ExpresionNivel1() :
+{}
+{
+    ExpresionNivel2()
+    (
+        ( <SUMA> | <RESTA> )
+        ExpresionNivel2()
+    )*
+}
+
+// Level 2: Handles multiplication, division, and modulo
+void ExpresionNivel2() :
+{}
+{
+    ExpresionNivel3()
+    (
+        ( <MULTIPLICACION> | <DIVISION> | <MODULO> )
+        ExpresionNivel3()
+    )*
+}
+
+// Level 3: Handles exponentiation
+void ExpresionNivel3() :
+{}
+{
+    ExpresionNivel4()
+    (
+        <EXPONENTE>
+        ExpresionNivel4()
+    )*
+}
+
+// Level 4: Handles values and optional array/matrix indexing
+void ExpresionNivel4() :
+{}
+{
     Valor()
     (
-        ( <SUMA> | <RESTA> | <MULTIPLICACION> | <DIVISION> | <MODULO> | <EXPONENTE> )
-        Valor()
-    )*
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+        ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )?
+    )?
 }
 
 // Regla principal para declarar variables
@@ -414,12 +503,89 @@ void DeclaracionVariable() :
 
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+
+        String detalleDinamico = obtenerDetalleSintactico(e);
+
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Declaración inválida o incompleta.",
+            detalleDinamico,
             "Asegúrate de definir el tipo de dato, el nombre correctamente y terminar con un punto y coma."));
         recuperarHasta(true);
     }
 }
+
+// ==========================================
+// DECLARACIÓN DE ARREGLOS
+// Ejemplo: ARREGLO ENT Calificaciones[10];
+// ==========================================
+void DeclaracionArreglo() :
+{ Token id; }
+{
+    try {
+        <ARREGLO_ESTRUCTURA> TipoDato() 
+        
+        ( id = <VARIABLE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
+        {
+            if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
+                    "Identificador no valido '" + id.image + "'.",
+                    "Toda variable debe iniciar con mayúscula."));
+            }
+        }
+        
+        // El tamaño del arreglo va entre corchetes
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+
+        //Inicialización del Arreglo Opcional
+        (
+        <IGUAL_ASIGNACION> <ABRIR_LLAVE> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_LLAVE> )?
+
+        <PUNTO_COMA>
+    } catch (ParseException e) {
+        int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            detalleDinamico,
+            "Estructura inválida. Usa: ARREGLO Tipo Nombre[Tamaño];"));
+        recuperarHasta(true);
+    }
+}
+
+// ==========================================
+// DECLARACIÓN DE MATRICES
+// Ejemplo: MATRIZ DEC Tablero[5][5];
+// ==========================================
+void DeclaracionMatriz() :
+{ Token id; }
+{
+    try {
+        <MATRIZ_ESTRUCTURA> TipoDato() 
+        
+        ( id = <VARIABLE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
+        {
+            if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
+                    "Identificador no valido '" + id.image + "'.",
+                    "Toda variable debe iniciar con mayúscula."));
+            }
+        }
+        
+        // Las matrices requieren dos dimensiones
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> 
+        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+
+        ( <IGUAL_ASIGNACION> <ABRIR_PARENTESIS> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_PARENTESIS>)?
+        <PUNTO_COMA>
+
+    } catch (ParseException e) {
+        int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
+        listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
+            detalleDinamico,
+            "Estructura inválida. Usa: MATRIZ Tipo Nombre[Filas][Columnas];"));
+        recuperarHasta(true);
+    }
+}
+
 
 // ==========================================
 // REGLA DE ASIGNACIÓN (Reasignar valores o Incrementar/Decrementar)
@@ -439,6 +605,12 @@ void Asignacion() :
                     "Toda variable debe iniciar con mayúscula y no contener caracteres especiales."));
           }
         }
+        //Soporte opcional para acceder a índices de arreglos o matrices
+        (
+                    <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+                    ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )? // El segundo es opcional (para matrices)
+                )?
+
         // Puede ser una asignación (= 5) o un incremento/decremento (++)
         (
             ( <IGUAL_ASIGNACION> ExpresionAritmetica() )
@@ -449,8 +621,10 @@ void Asignacion() :
 
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Sintaxis incorrecta en la asignación o incremento.",
+            detalleDinamico,
             "Asegúrate de asignar un valor válido y terminar con un punto y coma."));
         recuperarHasta(true);
     }
@@ -479,8 +653,9 @@ void Imprimir() :
         <IMPRIMIR_FUNCION> <ABRIR_PARENTESIS> ExpresionImprimir() <CERRAR_PARENTESIS> <PUNTO_COMA>
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Sintaxis incorrecta en IMPRIMIR.",
+            detalleDinamico,
             "Asegúrate de usar la estructura IMPRIMIR(valor);"));
         recuperarHasta(true);
     }
@@ -493,8 +668,9 @@ void Leer() :
         <LEER_FUNCION> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <PUNTO_COMA>
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Sintaxis incorrecta en LEER.",
+            detalleDinamico,
             "La estructura correcta es LEER(Variable);"));
         recuperarHasta(true);
     }
@@ -586,8 +762,10 @@ void CondicionalSi() :
           )?
     }catch(ParseException e){
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
+
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Condición ausente, malformada o bloque sin llaves en SI.",
+            detalleDinamico,
             "Verifica que la condición lógica esté completa y encierra las sentencias entre { }."));
         // consumirPuntoYComa = false → nos detenemos en "}" sin consumirlo
         // para no romper el bloque padre.
@@ -622,8 +800,9 @@ void CondicionalSegun() :
 
     }catch(ParseException e){
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Estructura SEGUN incompleta o sintaxis inválida.",
+            detalleDinamico,
             "El SEGUN requiere 'CASO valor:', finalizar cada caso con 'DETENER;' y cerrar llaves."));
         recuperarHasta(false);
     }
@@ -652,8 +831,9 @@ void BuclePara() :
     <CERRAR_LLAVE>
   }catch(ParseException e){
     int[] pos = obtenerPosicion(e);
+    String detalleDinamico = obtenerDetalleSintactico(e);
     listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Parámetros incompletos o inválidos en el ciclo PARA.",
+            detalleDinamico,
             "El ciclo necesita 3 partes: Declaración ; Condición ; Incremento/Decremento."));
     recuperarHasta(false);
   }
@@ -672,8 +852,9 @@ void BucleMientras() :
         <CERRAR_LLAVE>
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
+        String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
-            "Estructura MIENTRAS incompleta o malformada.",
+            detalleDinamico,
             "El ciclo necesita la estructura: MIENTRAS ( Condicion ) { sentencias }."));
 
         // Falso para detenernos en la llave de cierre sin consumirla (protege el bloque padre)

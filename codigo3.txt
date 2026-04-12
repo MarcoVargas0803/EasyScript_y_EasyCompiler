@@ -1,12 +1,6 @@
 INICIO{
-    DEC ARREGLO([] calificaciones {8.5,9.0,7.5,10.0,8.0};
-    DEC suma = 0;
+    ARREGLO  Calificaciones[5]
+    Suma = "Hola Mundo" 5;
+    ARREGLO DEC Calificaciones[5+5] = {8.5, 9.0, 7.5, 10.0, 8.0;
 
-    PARA (ENT i = 0;i< calificaciones;i++){
-    suma += calificaciones[i];
-    }
-
-    DEC promedio = suma / calificaciones;
-
-    IMPRIMIR("El promedio final es: "/n + promedio);
 }FIN

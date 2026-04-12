@@ -9,6 +9,22 @@
 */
 
 INICIO{
+
+}
+    ARREGLO DEC Calificaciones[5] = {8.5, 9.0, 7.5, 10.0, 8.0};
+
+    Matriz[1][2] = Matriz[1][2] + 5;
+
+    PARA (ENT I = 0;I < Calificaciones;I++){
+    Suma = Suma + Calificaciones[I];
+    }
+
+    DEC promedio = suma / calificaciones;
+
+    IMPRIMIR("El promedio final es: "/n + promedio);
+
+
+
     ENT Numero = 14;
 
     SI(Numero % 2==0){
