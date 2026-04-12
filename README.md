@@ -24,26 +24,34 @@
 
 3. Declaración de Arreglos
 
-        Formato:
+   ***Formato:***
+   
         ARREGLO TipoDato Variable[Tamaño];
-        Ejemplo:
+
+   ***Ejemplo:***
+   
         ARREGLO ENT Calificaciones[10];
 
-4. Declaración de Matrices
+5. Declaración de Matrices
 
-        Formato:
+   ***Formato:***
+   
         MATRIZ TipoDato Variable[Filas][Columnas];
-        Ejemplo:
+
+   ***Ejemplo:***
+   
         MATRIZ DEC Tablero[5][5];
 
-5. Asignación de Valores
+7. Asignación de Valores
 
-        Formato:
+   ***Formato:***
+   
         Variable = ExpresionAritmetica;
-        Ejemplo:
+   ***Ejemplo:***
+   
         Numero = Numero + 1;
 
-6. Operaciones Matemáticas
+9. Operaciones Matemáticas
 
     ***Formato:***
         
@@ -54,7 +62,7 @@
 
         Resultado = Numero1 + Numero2;
 
-7. Condicionales
+10. Condicionales
 
     ***Formato:***
 
@@ -74,7 +82,7 @@
             IMPRIMIR("Menor o igual a 10");
         }
 
-8. Condicional SEGUN (Switch)
+11. Condicional SEGUN (Switch)
 
 ***Formato:***
 
@@ -134,8 +142,14 @@
 12. Condiciones
 
 ***Condición Simple:***
+        
+**Formato:**
 
         Valor OperadorRelacional Valor
+
+**Ejemplo:**
+
+        5 > 3
 
 ***Operadores Relacionales:***
 
@@ -143,7 +157,14 @@
 
 ***Condición Compuesta:***
 
+**Formato:**
+
         CondicionSimple OperadorLógico CondicionSimple
+
+**Ejemplo**
+
+           ( 16 > 8 ) && (16 < 10 )
+
 
 ***Operadores Lógicos:***
 
