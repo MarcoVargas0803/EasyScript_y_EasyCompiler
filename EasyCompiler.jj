@@ -86,7 +86,6 @@ public class EasyCompiler {
                 EasyCompiler.listaErrores.add(new ErrorCompilador(tipo, -1, -1, mensaje, sugerencia));
             }
         }
-}
 
 PARSER_END(EasyCompiler)
 
