@@ -2,6 +2,13 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
 public class Main {
+    // Códigos ANSI para colores en la terminal
+    public static final String ANSI_RESET = "\u001B[0m";
+    public static final String ANSI_RED = "\u001B[31m";
+    public static final String ANSI_YELLOW = "\u001B[33m";
+    public static final String ANSI_BLUE = "\u001B[34m";
+    public static final String ANSI_GREEN = "\u001B[32m";
+
     public static void main(String args[]) {
         try {
             // Verificamos que al ejecutar envíen el nombre del archivo
@@ -23,28 +30,28 @@ public class Main {
             }
             
             if (EasyCompiler.listaErrores.isEmpty()) {
-                System.out.println(">> ¡Excelente! No se encontraron errores en el código fuente.");
+                System.out.println(ANSI_GREEN + ">> ¡Excelente! No se encontraron errores en el código fuente." + ANSI_RESET);
             } else {
 
                 // Cabecera principal
-                System.out.println("\n============================================================");
+                System.out.println(ANSI_RED + "\n============================================================");
                 System.out.println(" ⚠\uFE0F SE ENCONTRARON " + EasyCompiler.listaErrores.size() + " ERRORES DURANTE LA COMPILACIÓN ⚠\uFE0F");
-                System.out.println("============================================================");
+                System.out.println("============================================================" + ANSI_RESET);
 
                 // Recorremos la lista e imprimimos cada error en formato de "Tarjeta"
                 for (int i = 0; i < EasyCompiler.listaErrores.size(); i++) {
                     ErrorCompilador error = EasyCompiler.listaErrores.get(i);
 
                     // Fila 1: Encabezado del error con su ubicación
-                    System.out.printf("\n[ Error %d ] --- Tipo: %s | Línea: %d | Columna: %d \n",
+                    System.out.printf( ANSI_BLUE +"\n[ Error %d ] --- Tipo: %s | Línea: %d | Columna: %d \n" + ANSI_RESET,
                             (i + 1), error.tipo, error.linea, error.columna);
 
-                    // Fila 2 y 3: Detalle y Consejo (Al estar en su propia línea, pueden ser todo lo largos que quieran sin romper nada)
-                    System.out.println("  ❌ Detalle : " + error.detalle);
-                    System.out.println("  💡 Consejo : " + error.consejo);
+                    // Fila 2 y 3: Detalle y Consejo
+                    System.out.println(ANSI_RED + "  ❌ Detalle : " + error.detalle + ANSI_RESET);
+                    System.out.println("  💡 Consejo : " + error.consejo + ANSI_RESET);
                 }
 
-                System.out.println("\n============================================================");
+                System.out.println(ANSI_RED + "\n============================================================" + ANSI_RESET);
 
 
 
