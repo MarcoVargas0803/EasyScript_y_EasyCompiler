@@ -1,0 +1,45 @@
+INICIO
+{
+    // === PRUEBAS SINTÁCTICAS Y OPERACIONES MATEMÁTICAS ===
+    
+    // Declaraciones exitosas
+    ENT A = 10;
+    ENT B = 5;
+    
+    // Operaciones matemáticas complejas (Probando jerarquía y uso de paréntesis)
+    // NOTA PARA QA: El compilador actualmente podría fallar si usa paréntesis en expresiones matemáticas
+    // o si intenta asignar un valor negativo directamente.
+    ENT Resultado = A + B * 2;
+    ENT Jerarquia = (A + B) * 2; // Uso de paréntesis en matemáticas
+    ENT Negativo = -15;          // Número negativo
+    ENT RestaNeg = A - -5;       // Operación con negativo
+
+    // Declaraciones de Arreglos y Matrices
+    ARREGLO ENT Mi_arreglo[5];
+    ARREGLO DEC Notas[3] = {9.5, 8.0, 10.0};
+    
+    MATRIZ ENT Tablero[3][3];
+
+    //Verificar que si son asi las definiciones de las matrices.
+    MATRIZ ENT Coordenadas[2][2] = {{1, 2}, {3, 4}};
+
+    // Asignación y arreglos
+    Mi_arreglo[0] = 10;
+    Tablero[1][1] = 5;
+    
+    // Errores Sintácticos Esperados
+    
+    // Error: Declaración sin punto y coma
+    ENT SinPuntoYComa = 5
+
+    // Error: Declaración de arreglo mal formada (uso de paréntesis en vez de corchetes)
+    ARREGLO ENT MalArreglo(5);
+
+    // Error: Matriz con una sola dimensión
+    MATRIZ ENT MalMatriz[5];
+
+    // Error: Asignación inválida a variable no declarada o mal formada
+    1Variable = 10;
+
+}
+FIN

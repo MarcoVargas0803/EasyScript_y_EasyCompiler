@@ -1,0 +1,38 @@
+INICIO
+{
+    // === PRUEBAS LÉXICAS POSITIVAS ===
+    ENT Numero_positivo = 100;
+    DEC Pi = 3.14159;
+    BOOL Es_falso = FALSO;
+    TXT Saludo = "Hola, mundo!\nEste es un test.";
+    LETRA Letra_a = 'A';
+
+    // === PRUEBAS LÉXICAS NEGATIVAS (Errores Esperados) ===
+
+    // Error: Cadena no cerrada
+    TXT Cadena_invalida = "Esto no tiene fin;
+
+    // Error: Caracter no cerrado y más de un caracter
+    LETRA CaracterInvalido = 'ab;
+    LETRA LetraInvalida = 'Texto';
+
+    // Error: Identificador iniciando con número
+    ENT 1Variable = 5;
+
+    // Error: Identificador iniciando con minúscula y usando camelCase
+    DEC numeroMenor = 1.5;
+    DEC NumeroMayor = 2.5; // Mayúscula en medio
+
+    // Error: Formato numérico inválido
+    DEC NumInvalido = 3.14.15;
+
+    // Error: Operador lógico incompleto
+    SI (NumeroPositivo > 50 & EsFalso == FALSO) {
+        IMPRIMIR("Error léxico por &");
+    }
+
+    // Error: Símbolo no definido en el lenguaje
+    ENT Extra = 5 @ 3;
+
+}
+FIN
