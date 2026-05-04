@@ -1,0 +1,60 @@
+INICIO
+{
+    // === PRUEBAS ESTRUCTURAS DE CONTROL ===
+
+    ENT Edad = 20;
+
+    // Condicional SI / CONTRARIO / SINO
+    SI (Edad >= 18) {
+        IMPRIMIR("Es mayor de edad");
+    } CONTRARIO (Edad == 17) {
+        IMPRIMIR("Casi mayor");
+    } SINO {
+        IMPRIMIR("Es menor");
+    }
+
+    // Condicional SEGUN
+    ENT Opcion = 2;
+    SEGUN (Opcion) {
+        CASO 1:
+            IMPRIMIR("Uno");
+            DETENER;
+        CASO 2:
+            IMPRIMIR("Dos");
+            DETENER;
+        DEFECTO:
+            IMPRIMIR("Otro");
+    }
+
+    // Bucles
+    PARA (ENT I = 0; I < 5; I++) {
+        IMPRIMIR(I);
+    }
+
+    MIENTRAS (Edad < 30) {
+        Edad++;
+    }
+
+    // === ERRORES SINTÁCTICOS ESPERADOS (RECUPERACIÓN DE PÁNICO) ===
+
+    // Error: Condicional mal formado (Faltan paréntesis)
+    SI Edad > 10 {
+        IMPRIMIR("Error sintáctico");
+    }
+
+    // Error: SEGUN sin detener ni casos válidos
+    SEGUN (Edad) {
+        DEFECTO:
+    }
+
+    // Error: PARA incompleto
+    PARA (ENT J = 0; J < 10) {
+        IMPRIMIR("Falta incremento");
+    }
+
+    // Error: Bloque no cerrado correctamente
+    MIENTRAS (Edad == 20) {
+        IMPRIMIR("No se cierra llave");
+    
+}
+FIN

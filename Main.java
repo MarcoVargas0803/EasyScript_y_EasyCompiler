@@ -2,6 +2,13 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
 public class Main {
+    // Códigos ANSI para colores en la terminal
+    public static final String ANSI_RESET = "\u001B[0m";
+    public static final String ANSI_RED = "\u001B[31m";
+    public static final String ANSI_YELLOW = "\u001B[33m";
+    public static final String ANSI_BLUE = "\u001B[34m";
+    public static final String ANSI_GREEN = "\u001B[32m";
+
     public static void main(String args[]) {
         try {
             // Verificamos que al ejecutar envíen el nombre del archivo
@@ -13,9 +20,7 @@ public class Main {
             // Abrimos el archivo de texto
             FileInputStream archivo = new FileInputStream(args[0]);
             EasyCompiler compilador = new EasyCompiler(archivo);
-
-            System.out.println("=== Iniciando analisis lexico de: " + args[0] + " ===");
-
+            
             // SOLUCIÓN A LA EXCEPCIÓN: Try-catch para el ParseException
             try {
                 compilador.Programa();
@@ -23,12 +28,36 @@ public class Main {
             } catch (ParseException e) {
                 System.out.println("Error critico de sintaxis no recuperable: " + e.getMessage());
             }
-
-            System.out.println("=== Analisis lexico finalizado ===");
-
+            
             if (EasyCompiler.listaErrores.isEmpty()) {
-                System.out.println(">> ¡Excelente! No se encontraron errores en el codigo fuente.");
+                System.out.println(ANSI_GREEN + ">> ¡Excelente! No se encontraron errores en el código fuente." + ANSI_RESET);
             } else {
+
+                // Cabecera principal
+                System.out.println(ANSI_RED + "\n============================================================");
+                System.out.println(" ⚠\uFE0F SE ENCONTRARON " + EasyCompiler.listaErrores.size() + " ERRORES DURANTE LA COMPILACIÓN ⚠\uFE0F");
+                System.out.println("============================================================" + ANSI_RESET);
+
+                // Recorremos la lista e imprimimos cada error en formato de "Tarjeta"
+                for (int i = 0; i < EasyCompiler.listaErrores.size(); i++) {
+                    ErrorCompilador error = EasyCompiler.listaErrores.get(i);
+
+                    // Fila 1: Encabezado del error con su ubicación
+                    System.out.printf( ANSI_BLUE +"\n[ Error %d ] --- Tipo: %s | Línea: %d | Columna: %d \n" + ANSI_RESET,
+                            (i + 1), error.tipo, error.linea, error.columna);
+
+                    // Fila 2 y 3: Detalle y Consejo
+                    System.out.println(ANSI_RED + "  ❌ Detalle : " + error.detalle + ANSI_RESET);
+                    System.out.println("  💡 Consejo : " + error.consejo + ANSI_RESET);
+                }
+
+                System.out.println(ANSI_RED + "\n============================================================" + ANSI_RESET);
+
+
+
+
+
+                /*
                 // Dibujamos la cabecera de la tabla
                 System.out.println("Total de errores detectados: " + EasyCompiler.listaErrores.size());
                 System.out.println(
@@ -46,8 +75,8 @@ public class Main {
 
                 System.out.println(
                         "========================================================================================================================================================");
+            */
             }
-
         } catch (FileNotFoundException e) {
             System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
         } catch (TokenMgrError e) {
