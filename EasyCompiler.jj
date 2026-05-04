@@ -14,6 +14,14 @@ public class EasyCompiler {
   // Declaramos la lista de forma estática para que la clase Main pueda imprimirla al final
     public static List<ErrorCompilador> listaErrores = new ArrayList<>();
 
+    // Tokens de sincronización para inicio de sentencias
+    static final int[] SYNC_SENTENCIAS = {
+        ENTERO_DATO, DECIMAL_DATO, BOOLEANO_DATO, CARACTER_DATO, TEXTO_DATO, 
+        ARREGLO_ESTRUCTURA, MATRIZ_ESTRUCTURA, IMPRIMIR_FUNCION, LEER_FUNCION, 
+        SI_CONDICIONAL, SEGUN_CONDICIONAL, PARA_CICLO, MIENTRAS_CICLO,
+        ABRIR_LLAVE // Token para evitar que llaves huérfanas rompan el programa
+    };
+
 // -----------------------------------------------------------------------
     // MÉTODO AUXILIAR 1: Extrae línea y columna del token problemático de forma
     // segura. e.currentToken.next puede ser null y provocar NullPointerException.
@@ -27,22 +35,32 @@ public class EasyCompiler {
         return new int[]{t.beginLine, t.beginColumn};
     }
 
+
     // -----------------------------------------------------------------------
-    // MÉTODO AUXILIAR 2: Recuperación de pánico hasta ";" o "}" o EOF.
-    // Centraliza el patrón que se repetía en cada regla sintáctica.
-    // consumirPuntoYComa = true  → también consume el ";" al final (sentencias).
-    // consumirPuntoYComa = false → se detiene SIN consumirlo (útil en bloques).
+    // MÉTODO AUXILIAR 2.1: Recuperación de pánico con Sync Tokens
     // -----------------------------------------------------------------------
-    private void recuperarHasta(boolean consumirPuntoYComa) {
+    private void recuperarHastaSync(int... syncTokens) {
         Token t = getToken(1);
-        while(t.kind != PUNTO_COMA && t.kind != CERRAR_LLAVE && t.kind != EOF){
+        while (t.kind != EOF) {
+            boolean encontrado = false;
+            for (int st : syncTokens) {
+                if (t.kind == st) {
+                    encontrado = true;
+                    break;
+                }
+            }
+            if (encontrado || t.kind == CERRAR_LLAVE || t.kind == PUNTO_COMA) {
+                break;
+            }
             getNextToken();
             t = getToken(1);
         }
-        if (consumirPuntoYComa && t.kind == PUNTO_COMA) {
+        
+        // Si nos detuvimos en un punto y coma, lo consumimos para limpiar la sentencia.
+        if (getToken(1).kind == PUNTO_COMA) {
             getNextToken();
         }
-	}
+    }
 	// -----------------------------------------------------------------------
     // MÉTODO AUXILIAR 3: Extrae qué token falló y qué tokens se esperaban.
     // -----------------------------------------------------------------------
@@ -86,6 +104,7 @@ public class EasyCompiler {
                 EasyCompiler.listaErrores.add(new ErrorCompilador(tipo, -1, -1, mensaje, sugerencia));
             }
         }
+    }
 
 PARSER_END(EasyCompiler)
 
@@ -306,13 +325,19 @@ void Sentencias() :
         }
        */
        | BucleMientras()
+       | BloqueAnonimo()
        /*
-        Ejemplo:
-        MIENTRAS(Valor < 100) {
-          Valor = Valor * 2;
-        }
+        Bloque anónimo para atrapar llaves de estructuras de control que fallaron
+        y evitar que desbalanceen las llaves de todo el programa.
        */
     )*
+}
+
+// Bloque anónimo para recuperación de errores
+void BloqueAnonimo() :
+{}
+{
+    <ABRIR_LLAVE> Sentencias() <CERRAR_LLAVE>
 }
 
 void Programa() :
@@ -377,9 +402,6 @@ void Valor() :
       EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
                               "Cadena de texto sin cerrar.",
                               "Cierra la cadena de texto con comillas dobles."));
-
-	  agregarError("Léxico", err, "Cadena de texto sin cerrar.", "Cierra la cadena de texto con comillas dobles.");
-
     }
   | err = <ERROR_CARACTER>
     {
@@ -403,14 +425,14 @@ void Valor() :
           // Acción Léxica: Esto se ejecuta al instante
           EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
                               "Identificador no valido '" + err.image + "'",
-                              "Toda variable/constante debe iniciar con mayuscula."));
+                              "Toda variable/constante debe iniciar con una mayúscula seguido de minusculas, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'"));
       }
   | err = <ERROR_LONGITUD_CARACTER>
   {
           // Acción Léxica: Esto se ejecuta al instante
           EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
                               "Formato de caracter invalido: " + err.image,
-                              "Longitud mayor a 1 o caracter no reconocido para LETRA."));
+                              "Longitud mayor a 1 o caracter no reconocido para LETRA. Ejemplos: 'a' o '5'"));
       }
   | err = <ERROR_LOGICO_INCOMPLETO>
   {
@@ -463,15 +485,28 @@ void ExpresionNivel3() :
     )*
 }
 
-// Level 4: Handles values and optional array/matrix indexing
+// Level 4: Handles unary operators (negative numbers) and values/parentheses
 void ExpresionNivel4() :
 {}
 {
-    Valor()
+    ( <RESTA> )? // Soporte para número negativo unario (ej. -5 o -Variable)
+    ValorConArreglos()
+}
+
+// Subnivel para manejar valores, llamadas a arreglos o expresiones entre paréntesis
+void ValorConArreglos() :
+{}
+{
     (
-        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
-        ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )?
-    )?
+        <ABRIR_PARENTESIS> ExpresionAritmetica() <CERRAR_PARENTESIS>
+      | 
+        Valor()
+        // Soporte opcional para acceder a índices de arreglos o matrices
+        (
+            <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+            ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )?
+        )?
+    )
 }
 
 // Regla principal para declarar variables
@@ -491,7 +526,7 @@ void DeclaracionVariable() :
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
                 EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
                     "Identificador no valido '" + id.image + "'.",
-                    "Toda variable/constante debe iniciar con mayúscula."));
+                    "Toda variable/constante debe iniciar con una mayúscula seguido de minusculas, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'"));
             }
         }
 
@@ -508,7 +543,9 @@ void DeclaracionVariable() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "Asegúrate de definir el tipo de dato, el nombre correctamente y terminar con un punto y coma."));
-        recuperarHasta(true);
+            
+        // Usamos Sync Tokens para detenernos si vemos el inicio de otra sentencia
+        recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
 
@@ -545,7 +582,7 @@ void DeclaracionArreglo() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "Estructura inválida. Usa: ARREGLO Tipo Nombre[Tamaño];"));
-        recuperarHasta(true);
+        recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
 
@@ -572,7 +609,12 @@ void DeclaracionMatriz() :
         <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> 
         <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
 
-        ( <IGUAL_ASIGNACION> <ABRIR_PARENTESIS> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_PARENTESIS>)?
+        ( 
+            <IGUAL_ASIGNACION> <ABRIR_LLAVE> 
+                <ABRIR_LLAVE> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_LLAVE>
+                ( <COMA> <ABRIR_LLAVE> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_LLAVE> )*
+            <CERRAR_LLAVE> 
+        )?
         <PUNTO_COMA>
 
     } catch (ParseException e) {
@@ -581,7 +623,7 @@ void DeclaracionMatriz() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "Estructura inválida. Usa: MATRIZ Tipo Nombre[Filas][Columnas];"));
-        recuperarHasta(true);
+        recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
 
@@ -625,7 +667,7 @@ void Asignacion() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "Asegúrate de asignar un valor válido y terminar con un punto y coma."));
-        recuperarHasta(true);
+        recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
 
@@ -656,7 +698,7 @@ void Imprimir() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "Asegúrate de usar la estructura IMPRIMIR(valor);"));
-        recuperarHasta(true);
+        recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
 
@@ -671,7 +713,7 @@ void Leer() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "La estructura correcta es LEER(Variable);"));
-        recuperarHasta(true);
+        recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
 
@@ -768,7 +810,10 @@ void CondicionalSi() :
             "Verifica que la condición lógica esté completa y encierra las sentencias entre { }."));
         // consumirPuntoYComa = false → nos detenemos en "}" sin consumirlo
         // para no romper el bloque padre.
-        recuperarHasta(false);
+        recuperarHastaSync(SYNC_SENTENCIAS);
+        if (getToken(1).kind == CERRAR_LLAVE) {
+            getNextToken();
+        }
   }
 }
 
@@ -803,7 +848,10 @@ void CondicionalSegun() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "El SEGUN requiere 'CASO valor:', finalizar cada caso con 'DETENER;' y cerrar llaves."));
-        recuperarHasta(false);
+        recuperarHastaSync(SYNC_SENTENCIAS);
+        if (getToken(1).kind == CERRAR_LLAVE) {
+            getNextToken();
+        }
     }
 
 }
@@ -834,7 +882,10 @@ void BuclePara() :
     listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "El ciclo necesita 3 partes: Declaración ; Condición ; Incremento/Decremento."));
-    recuperarHasta(false);
+    recuperarHastaSync(SYNC_SENTENCIAS);
+    if (getToken(1).kind == CERRAR_LLAVE) {
+        getNextToken();
+    }
   }
 
 }
@@ -857,6 +908,9 @@ void BucleMientras() :
             "El ciclo necesita la estructura: MIENTRAS ( Condicion ) { sentencias }."));
 
         // Falso para detenernos en la llave de cierre sin consumirla (protege el bloque padre)
-        recuperarHasta(false);
+        recuperarHastaSync(SYNC_SENTENCIAS);
+        if (getToken(1).kind == CERRAR_LLAVE) {
+            getNextToken();
+        }
     }
 }
