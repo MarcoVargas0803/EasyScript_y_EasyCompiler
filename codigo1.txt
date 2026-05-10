@@ -12,15 +12,15 @@
 INICIO{
 
       //Prueba de variables y constantes
-      ENT numero_1 = -10;
+      ENT Numero_1 = -10;
       DEC Numero_con_punto_1_y_2_decimales = 10.5;
-      BOOL Es_numero = VERDADERO
-      LETRA Primera_Letra = 'a
-      LETRA Primera_Letra = 'Hola'
-      TXT Minombre = "Juanito"
+      BOOL Es_numero = VERDADERO;
+      LETRA Primera_letra = 'a';
+      LETRA Primera_letra = 'z';
+      TXT Minombre = "Juánito";
 
-      DEC CONST_Pi = 3.1416
-      ENT CONST_Constante_x = -27
+      DEC CONST_Pi = 3.1416;
+      ENT CONST_Constante_x = -27;
 
       //Incremento o decremento 
       Variable1 ++;
@@ -28,14 +28,14 @@ INICIO{
       
       //Arreglos o matrices
 
-      ENT ARREGLO[] Alumnos [9];
-      DEC ARREGLO[] Temperatura {32.5,40.3,17.2,10.5};
-      ENT MATRIZ[][] Matriz1 [3][4];
-      DEC MATRIZ[][] Calificaciones {{7.5,2.4,8.0},{4.8,5.5,10.0}};
+      ARREGLO ENT Alumnos[9];
+      ARREGLO DEC Temperatura[-Variable1] = {32.5,40.3,17.2,10.5};
+      MATRIZ TXT Matriz1 [3][4];
+      MATRIZ DEC Calificaciones[3][4] = {{7.5,2.4,8.0},{4.8,5.5,10.0}};
        	   
       //Impresión a pantalla 
 
-      IMPRIMIR("Este es un mensaje de ejemplo);
+      IMPRIMIR("Este es un mensaje de ejemplo");
 
       IMPRIMIR(Variable1);
 
@@ -45,7 +45,9 @@ INICIO{
 
       LEER(Variable1);
 
-      LEER("Ingresa el dato: "Variable1 )          
+	
+
+      LEER(Variable1); 
 
       //Prueba Condicional "SI"
 
@@ -74,11 +76,29 @@ INICIO{
                         IMPRIMIR("Num2 es el mayor de los 3");
                   } CONTRARIO (Numero_3 > Numero_1 && Numero_3 > Numero_2){
                         IMPRIMIR("Num3 es el mayor de los 3");
-            }
+            }SINO{
+		IMPRIMIR("Num1 es el mayor de los 3");
+	}
+
+	SEGUN (Variable1) {
+			CASO Valor1:
+				// instrucciones
+				DETENER;
+			CASO Valor2:
+				// instrucciones
+				DETENER;
+			DEFECTO:
+			// instrucciones
+		}
+
+	MIENTRAS (Condicion) {
+		// bloque de código
+	}
+
 
 
       
-      PARA (I=0; I<10; I++){
-      Variable_1 = Variable_1 + 1; 
+      PARA (ENT I=0; I<10; I++){
+      Variable_1 = Variable_1 + 1;
       }
 }FIN

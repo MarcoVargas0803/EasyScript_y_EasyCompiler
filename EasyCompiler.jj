@@ -272,64 +272,23 @@ void Sentencias() :
 {}
 {
     (
-        DeclaracionVariable()
-        /*
-        *   Ejemplo: ENT Numero = 5;
-        *
-        * */
+         DeclaracionVariable()
       |  DeclaracionArreglo()
       |  DeclaracionMatriz()
-
       | Asignacion()
-      /*
-        *   Ejemplo: Numero = Numero + 1;
-       */
       | Imprimir()
-      /*
-        *   Ejemplo: IMPRIMIR("El numero es: " + Numero);
-       */
       | Leer()
-      /*
-        *   Ejemplo: LEER(Numero);
-       */
       | CondicionalSi()
-      /*
-         Ejemplo:
-         SI(Valor > 10) {
-            IMPRIMIR("Mayor a 10");
-         } CONTRARIO(Valor == 10) {
-            IMPRIMIR("Igual a 10");
-         } SINO {
-            IMPRIMIR("Menor a 10");
-         }
-       */
       | CondicionalSegun()
-      /*
-        Ejemplo:
-        SEGUN(Valor) {
-          CASO 1:
-            IMPRIMIR("Valor es 1");
-            DETENER;
-          CASO 2:
-            IMPRIMIR("Valor es 2");
-            DETENER;
-          DEFECTO:
-            IMPRIMIR("Valor no es ni 1 ni 2");
-        }
-       */
       | BuclePara()
-      /*
-        Ejemplo:
-        PARA(ENT I = 0; I < 10; I++) {
-          IMPRIMIR(I);
-        }
-       */
-       | BucleMientras()
-       | BloqueAnonimo()
+      | BucleMientras()
+      | BloqueAnonimo()
        /*
         Bloque anónimo para atrapar llaves de estructuras de control que fallaron
         y evitar que desbalanceen las llaves de todo el programa.
        */
+      | <PUNTO_COMA>
+      //Sentencia Vacia: Solo un punto y coma, para permitir sentencias vacías sin romper el programa.
     )*
 }
 
@@ -347,8 +306,8 @@ void Programa() :
     <INICIO_PROGRAMA>
     <ABRIR_LLAVE>
 
-    Sentencias() // <-- ¡Llamamos a las sentencias aquí!
-
+    Sentencias() 
+    
     <CERRAR_LLAVE>
     <FIN_PROGRAMA>
     <EOF>
@@ -367,19 +326,19 @@ void Programa() :
 
 }
 
-// Regla que agrupa los tipos de datos de EasyScript
-
 void TipoDato() :
 {}
 {
-    <ENTERO_DATO> | <DECIMAL_DATO> | <BOOLEANO_DATO> | <CARACTER_DATO> | <TEXTO_DATO>
+    <ENTERO_DATO> 
+    | <DECIMAL_DATO> 
+    | <BOOLEANO_DATO> 
+    | <CARACTER_DATO> 
+    | <TEXTO_DATO>
 }
 
-// Regla para los valores que puede tomar una variable (incluye tolerancia a errores)
 void Valor() :
 {
   Token err;
-
 }
 {
     <NUM_ENTERO>
@@ -392,9 +351,9 @@ void Valor() :
   | <VARIABLE>
   | <CONSTANTE>
 
-  /*
-    Atrapa errores Léxicos
-  */
+  
+  // Atrapa errores Léxicos
+  
 
   | err = <ERROR_TEXTO>
     {
@@ -442,10 +401,7 @@ void Valor() :
                               "Los operadores en EasyScript son dobles (&&, ||, !!)."));
       }
 }
-// ==========================================
-// EXPRESIONES MATEMÁTICAS
-// Ejemplo:  Numero = Numero + 1;
-// ==========================================
+
 void ExpresionAritmetica() :
 {}
 {
@@ -474,7 +430,7 @@ void ExpresionNivel2() :
     )*
 }
 
-// Level 3: Handles exponentiation
+// Level 3: Maneja exponentes
 void ExpresionNivel3() :
 {}
 {
@@ -485,11 +441,11 @@ void ExpresionNivel3() :
     )*
 }
 
-// Level 4: Handles unary operators (negative numbers) and values/parentheses
+// Level 4: Maneja operadores unarios (números negativos) y valores/paréntesis
 void ExpresionNivel4() :
 {}
 {
-    ( <RESTA> )? // Soporte para número negativo unario (ej. -5 o -Variable)
+    ( <RESTA> )? // Soporte para número negativo unario
     ValorConArreglos()
 }
 
@@ -518,7 +474,6 @@ void DeclaracionVariable() :
     try {
         TipoDato()
 
-        // ¡AQUÍ ESTÁ EL CAMBIO! Aceptamos el identificador inválido
         ( id = <VARIABLE> | id = <CONSTANTE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
 
         {
@@ -581,7 +536,7 @@ void DeclaracionArreglo() :
         String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
-            "Estructura inválida. Usa: ARREGLO Tipo Nombre[Tamaño];"));
+            "Estructura inválida. Usa: ARREGLO Tipo Nombre[Tamaño]; o ARREGLO Tipo Nombre[Tamaño] = {{valor1,valor2},{valor3,valor4}};"));
         recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
@@ -742,8 +697,8 @@ void CondicionSimple() :
         }
     )?
 
-    // 2. El valor principal a evaluar
-    Valor()
+    // 2. La expresión principal a evaluar
+    ExpresionAritmetica()
 
     // 3. Opcional: Operador relacional y segundo valor (Ej. > 5)
     ( OperadorRelacional() Valor() )?
