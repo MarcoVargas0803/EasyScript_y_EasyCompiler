@@ -1,7 +1,111 @@
-INICIO{
-     
-     MIENTRAS(Valor == 10){
-        IMPRIMIR(Valor1);
+INICIO {
+    ENT Numero;
+    LEER(Numero);
+
+
+    SI (Numero % 2 == 0) {
+        IMPRIMIR("El numero es par");
+    }SINO{
+        IMPRIMIR("El numero es impar");
+    }
+
+     SI (Precio * 0.16 == Impuesto) {
+            IMPRIMIR("Impuesto correcto");
+        }SINO{
+            IMPRIMIR("Impuesto incorrecto");
         }
-}FIN
+
+     MIENTRAS (Contador + Pasos <= 100) {
+        Contador = Contador + Pasos;
+        }
+
+    PARA (ENT I = 0; I * 2 < Limite; I++) {
+        Resultado = Resultado + I * 2;
+    }
+        ENT N = 5;
+        ENT Contador = 1;
+        ENT Acumulador = 0;
+
+        MIENTRAS (Contador <= N) {
+            Acumulador = Acumulador + Contador;
+            Contador++;
+        }
+
+        IMPRIMIR("La suma total es: " + Acumulador);
+
+        ENT Limite = 10;
+        ENT A = 0;
+        ENT B = 1;
+        ENT Siguiente;
+
+        IMPRIMIR(A);
+        IMPRIMIR(B);
+
+        PARA (ENT I = 2; I < Limite; I++) {
+            Siguiente = A + B;
+            IMPRIMIR(Siguiente);
+            A = B;
+            B = Siguiente;
+        }
+
+    ENT Opcion = 2;
+
+        SEGUN (Opcion) {
+            CASO 1:
+                IMPRIMIR("Seleccionaste Suma");
+                DETENER;
+            CASO 2:
+                IMPRIMIR("Seleccionaste Resta");
+                DETENER;
+            DEFECTO:
+                IMPRIMIR("Opcion no reconocida");
+        }
+
+    ARREGLO ENT Calificaciones[5] = {8, 5, 9, 10, 7};
+        ENT Mayor = Calificaciones[0];
+
+        PARA (ENT I = 1; I < 5; I++) {
+            SI (Calificaciones[I] > Mayor) {
+                Mayor = Calificaciones[I];
+            }
+        }
+
+        IMPRIMIR("La calificacion mayor es: " + Mayor);
+
+     Otra_matriz[2][3] = 15;
+     Otro_arreglo[Valor1] = 20;
+
+     MATRIZ DEC Coordenadas[2][2] = { {1.5, 2.0}, {3.5, 4.0} };
+         DEC Valor_origen = Coordenadas[0][0];
+
+         IMPRIMIR("El valor de origen es: " + Valor_origen);
+
+    ENT Edad = 25;
+        BOOL Tiene_identificacion = VERDADERO;
+
+        SI (Edad >= 18 && Tiene_identificacion == VERDADERO) {
+            IMPRIMIR("Acceso concedido");
+        } CONTRARIO (!!Tiene_identificacion) {
+            IMPRIMIR("Falta identificacion oficial");
+        } SINO {
+            IMPRIMIR("Acceso denegado");
+        }
+        DEC CONST_Pi = 3.1416;
+        DEC Radio = 5.0;
+
+        DEC Area = CONST_Pi * (Radio ** 2);
+        IMPRIMIR("El area del circulo es: " + Area);
+
+        // 1. Variable en minúscula y falta punto y coma (Lanza error léxico y sintáctico)
+            ENT Numero = 10;
+
+        // 2. Falta tipo de dato en la constante y falta punto y coma
+        CONST_Gravedad = 9.8;;
+
+        // 3. Operador lógico incompleto (&) y falta de punto y coma en el imprimir
+        SI (numero > 5 & VERDADERO) {
+              IMPRIMIR("Hola");
+        }
+
+} FIN
        

@@ -1,0 +1,12 @@
+INICIO{
+	//Top 3 favoritos canciones de Olivia Rodrigo;
+
+	ARREGLO TXT Canciones_favoritas[3] = {"Its a Bad Idea Right","Vampire","Drop dead"};
+
+	PARA(I=0;I<4;I++){
+		
+		IMPRIMIR("Canciones Favoritas: " + Canciones_favoritas[I]);
+		I++
+		}
+
+}FIN
