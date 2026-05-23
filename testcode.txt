@@ -1,0 +1,7 @@
+INICIO{
+        MATRIZ ENT Tablero[3][3];
+        MATRIZ ENT Tablero[3][3] = {{7.5,2.4,8.0}, {4.8,5.5,10.0}, {4.8,5.5,10.0}};
+        DEC MATRIZ Calificaciones[2][3] {{7.5,2.4,8.0}, {4.8,5.5,10.0}};
+        ARREGLO ENT Mi_arreglo[5];
+        ARREGLO DEC Notas[3] = {9.5, 8.0, 10.0};
+    } FIN
