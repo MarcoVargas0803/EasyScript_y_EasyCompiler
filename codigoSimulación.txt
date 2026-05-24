@@ -3,10 +3,10 @@ INICIO{
 
 	ARREGLO TXT Canciones_favoritas[3] = {"Its a Bad Idea Right","Vampire","Drop dead"};
 
-	PARA(I=0;I<4;I++){
+	PARA(ENT I=0;I<4;I++){
 		
-		IMPRIMIR("Canciones Favoritas: " + Canciones_favoritas[I]);
-		I++
+		IMPRIMIR("Canciones Favoritas: " + Canciones_favoritas);
+		I++;
 		}
 
 }FIN
