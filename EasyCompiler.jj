@@ -454,7 +454,7 @@ void ValorConArreglos() :
 {}
 {
     (
-        <ABRIR_PARENTESIS> ExpresionAritmetica() <CERRAR_PARENTESIS>
+        <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS>
       | 
         Valor()
         // Soporte opcional para acceder a índices de arreglos o matrices
@@ -485,7 +485,7 @@ void DeclaracionVariable() :
             }
         }
 
-        ( <IGUAL_ASIGNACION> ExpresionAritmetica() )?
+        ( <IGUAL_ASIGNACION> Condicion() )?
         <PUNTO_COMA>
 
 
@@ -528,7 +528,7 @@ void DeclaracionArreglo() :
 
         //Inicialización del Arreglo Opcional
         (
-        <IGUAL_ASIGNACION> <ABRIR_LLAVE> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_LLAVE> )?
+        <IGUAL_ASIGNACION> <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE> )?
 
         <PUNTO_COMA>
     } catch (ParseException e) {
@@ -566,8 +566,8 @@ void DeclaracionMatriz() :
 
         ( 
             <IGUAL_ASIGNACION> <ABRIR_LLAVE> 
-                <ABRIR_LLAVE> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_LLAVE>
-                ( <COMA> <ABRIR_LLAVE> ExpresionAritmetica() (<COMA> ExpresionAritmetica())* <CERRAR_LLAVE> )*
+                <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE>
+                ( <COMA> <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE> )*
             <CERRAR_LLAVE> 
         )?
         <PUNTO_COMA>
@@ -609,7 +609,7 @@ void Asignacion() :
 
         // Puede ser una asignación (= 5) o un incremento/decremento (++)
         (
-            ( <IGUAL_ASIGNACION> ExpresionAritmetica() )
+            ( <IGUAL_ASIGNACION> Condicion() )
           | <INCREMENTO_AL_VALOR>
           | <DECREMENTO_AL_VALOR>
         )
@@ -635,7 +635,7 @@ void Asignacion() :
 void ExpresionImprimir() :
 {}
 {
-    Valor() ( <SUMA> Valor() )*
+    ExpresionAritmetica() ( <SUMA> ExpresionAritmetica() )*
 }
 
 // ==========================================
@@ -701,7 +701,7 @@ void CondicionSimple() :
     ExpresionAritmetica()
 
     // 3. Opcional: Operador relacional y segundo valor (Ej. > 5)
-    ( OperadorRelacional() Valor() )?
+    ( OperadorRelacional() ExpresionAritmetica() )?
 }
 
 // ==========================================
