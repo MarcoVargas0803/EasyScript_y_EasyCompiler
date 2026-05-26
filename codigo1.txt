@@ -91,14 +91,8 @@ INICIO{
 			// instrucciones
 		}
 
-	MIENTRAS (Condicion) {
+	 ENT Condicion; 
+       {
 		// bloque de código
 	}
-
-
-
-      
-      PARA (ENT I=0; I<10; I++){
-      Variable_1 = Variable_1 + 1;
-      }
 }FIN

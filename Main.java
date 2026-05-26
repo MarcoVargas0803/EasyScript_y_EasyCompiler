@@ -21,12 +21,16 @@ public class Main {
             FileInputStream archivo = new FileInputStream(args[0]);
             EasyCompiler compilador = new EasyCompiler(archivo);
             
-            // SOLUCIÓN A LA EXCEPCIÓN: Try-catch para el ParseException
             try {
                 compilador.Programa();
                 System.out.println(">> Analisis completado.");
             } catch (ParseException e) {
                 System.out.println("Error critico de sintaxis no recuperable: " + e.getMessage());
+            } catch (TokenMgrError e) {
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", -1, -1, 
+                    "Error fatal del escáner: " + e.getMessage(), 
+                    "El archivo contiene caracteres inválidos o estructuras léxicas irreparables."));
+                System.out.println(">> Analisis interrumpido por error léxico fatal.");
             }
             
             if (EasyCompiler.listaErrores.isEmpty()) {
@@ -79,9 +83,6 @@ public class Main {
             }
         } catch (FileNotFoundException e) {
             System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
-        } catch (TokenMgrError e) {
-            // Si el usuario escribe un símbolo que no definimos
-            System.out.println("Error critico del analizador: " + e.getMessage());
         }
     }
 }

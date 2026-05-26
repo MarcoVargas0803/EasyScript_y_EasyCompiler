@@ -1,0 +1,46 @@
+INICIO {
+    ENT Negativos = 0;
+    ENT Numero;
+    MIENTRAS (Negativos < 3) {
+        IMPRIMIR("Ingrese un numero:");
+        LEER(Numero);
+        SI (Numero < 0) {
+            Negativos = Negativos + 1;
+            IMPRIMIR("Lleva " + Negativos + " Negativo(s).");
+
+	ENT Variable_con_guión = 20;
+	Variable1 = Variable1 + 1;
+
+	ARREGLO ENT Alumnos[9];
+	ARREGLO DEC Temperatura[9] = {32.5,40.3,17.2,10.5};
+	I++;
+        }
+
+	MATRIZ ENT Matriz1 [3][4];
+	MATRIZ ENT Matriz1 [3][4] = {{1,2,3},{1,2,3},{1,2,3},{1,2,3}};
+
+	IMPRIMIR ("Cantidad de materias: " + CONST_Materias);
+    }	
+	LEER (Variable1);
+
+	SEGUN (Variable1) {
+	 CASO Valor1:
+		SI (Numero < 0) {
+            Negativos = Negativos + 1;
+            IMPRIMIR("Lleva " + Negativos + " Negativo(s).");
+
+	ENT Variable_con_guión = 20;
+	Variable1 = Variable1 + 1;
+
+	ARREGLO ENT Alumnos[9];
+	ARREGLO DEC Temperatura[9] = {32.5,40.3,17.2,10.5};
+	I++;
+        }
+	
+	  	DETENER; 
+	 CASO Valor2: //instrucciones 
+	DEFECTO: // instrucciones 
+	}
+
+    IMPRIMIR("Se ingresaron \t 3 negativos. Fin." + Variable[0]);
+} FIN
