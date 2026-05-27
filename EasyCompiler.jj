@@ -113,7 +113,22 @@ PARSER_END(EasyCompiler)
 SKIP : {
   " " | "\t" | "\n" | "\r"
   | < COMENTARIO_LINEA: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n") > // Ignora todo después de // hasta el salto de línea.
-  | < COMENTARIO_BLOQUE: "/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/" > // Ignora lo que esté entre /* y */
+  | "/*" : IN_COMMENT
+}
+
+<IN_COMMENT> SKIP : {
+  "*/" : DEFAULT
+  | < ~[] > // Consume cualquier otro carácter dentro del comentario
+}
+
+<*> TOKEN : {
+  <EOF> {
+    if (curLexState == IN_COMMENT) {
+        EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", input_stream.getEndLine(), input_stream.getEndColumn(),
+            "Comentario de bloque sin cerrar",
+            "Asegúrate de cerrar el comentario con '*/' antes del fin del archivo."));
+    }
+  }
 }
 
 //Tokens Principales
@@ -313,12 +328,22 @@ void Programa() :
     <EOF>
   }catch(ParseException e){
         int[] pos = obtenerPosicion(e);
-
         String detalleDinamico = obtenerDetalleSintactico(e);
+
+        String consejo = "Todo código debe comenzar con INICIO { y terminar con } FIN.";
+        
+        Token errToken = e.currentToken != null ? e.currentToken.next : null;
+        if (errToken != null) {
+            if (errToken.kind == FIN_PROGRAMA) {
+                consejo = "¡Cuidado con las llaves! Parece que olvidaste cerrar una llave '}' en alguna estructura interna (como un SI, PARA o MIENTRAS), lo que causó un desbalanceo.";
+            } else if (errToken.kind == SI_CONTRARIO || errToken.kind == SI_SINO || errToken.kind == CASO_SEGUN || errToken.kind == DEFECTO_SEGUN) {
+                consejo = "Palabra reservada fuera de lugar. Esto suele ocurrir si te faltó cerrar el bloque anterior con '}' o 'DETENER;', o si usaste la palabra de forma aislada.";
+            }
+        }
 
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
-            "Todo código debe comenzar con INICIO { y terminar con } FIN."));
+            consejo));
 
         // Como es la regla raíz consumimos hasta EOF para no generar más ruido
         while (getNextToken().kind != EOF) {}
@@ -454,15 +479,58 @@ void ValorConArreglos() :
 {}
 {
     (
-        <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS>
+        <ABRIR_PARENTESIS> Condicion() 
+        (
+            <CERRAR_PARENTESIS>
+          | {
+                Token t = getToken(1);
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Sintáctico", t.beginLine, t.beginColumn,
+                    "Falta paréntesis de cierre ')'",
+                    "Parece que olvidaste cerrar un paréntesis en tu operación."));
+            }
+        )
       | 
         Valor()
         // Soporte opcional para acceder a índices de arreglos o matrices
         (
-            <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
-            ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )?
+            <ABRIR_CORCHETE> ExpresionAritmetica() 
+            (
+                <CERRAR_CORCHETE>
+              | {
+                    Token t = getToken(1);
+                    EasyCompiler.listaErrores.add(new ErrorCompilador("Sintáctico", t.beginLine, t.beginColumn,
+                        "Falta corchete de cierre ']'",
+                        "Parece que olvidaste cerrar el índice del arreglo con ']'."));
+                }
+            )
+            ( <ABRIR_CORCHETE> ExpresionAritmetica() 
+              (
+                  <CERRAR_CORCHETE>
+                | {
+                      Token t = getToken(1);
+                      EasyCompiler.listaErrores.add(new ErrorCompilador("Sintáctico", t.beginLine, t.beginColumn,
+                          "Falta corchete de cierre ']'",
+                          "Parece que olvidaste cerrar el índice de la matriz con ']'."));
+                  }
+              ) 
+            )?
         )?
     )
+}
+
+// ==========================================
+// RECUPERACIÓN POR INSERCIÓN
+// ==========================================
+void PuntoYComaVirtual() :
+{}
+{
+    <PUNTO_COMA>
+  | {
+        Token t = getToken(1);
+        EasyCompiler.listaErrores.add(new ErrorCompilador("Sintáctico", t.beginLine, t.beginColumn,
+            "Falta punto y coma ';'",
+            "Se esperaba un ';' al final de la instrucción."));
+    }
 }
 
 // Regla principal para declarar variables
@@ -481,12 +549,12 @@ void DeclaracionVariable() :
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
                 EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
                     "Identificador no valido '" + id.image + "'.",
-                    "Toda variable/constante debe iniciar con una mayúscula seguido de minusculas, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'"));
+                    "Toda variable/constante debe iniciar con una mayúscula seguido de minusculas o guiones bajos, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'"));
             }
         }
 
         ( <IGUAL_ASIGNACION> Condicion() )?
-        <PUNTO_COMA>
+        PuntoYComaVirtual()
 
 
 
@@ -519,7 +587,7 @@ void DeclaracionArreglo() :
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
                 EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
                     "Identificador no valido '" + id.image + "'.",
-                    "Toda variable debe iniciar con mayúscula."));
+                    "Toda variable debe iniciar con mayúscula seguido de minusculas o guiones bajos, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'."));
             }
         }
         
@@ -530,7 +598,7 @@ void DeclaracionArreglo() :
         (
         <IGUAL_ASIGNACION> <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE> )?
 
-        <PUNTO_COMA>
+        PuntoYComaVirtual()
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
         String detalleDinamico = obtenerDetalleSintactico(e);
@@ -556,7 +624,7 @@ void DeclaracionMatriz() :
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
                 EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
                     "Identificador no valido '" + id.image + "'.",
-                    "Toda variable debe iniciar con mayúscula."));
+                    "Toda variable debe iniciar con mayúscula seguido de minusculas o guiones bajos, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'"));
             }
         }
         
@@ -570,7 +638,7 @@ void DeclaracionMatriz() :
                 ( <COMA> <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE> )*
             <CERRAR_LLAVE> 
         )?
-        <PUNTO_COMA>
+        PuntoYComaVirtual()
 
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
@@ -598,7 +666,7 @@ void Asignacion() :
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
                 EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", id.beginLine, id.beginColumn,
                     "Asignación incorrecta: Identificador no valido '" + id.image + "'.",
-                    "Toda variable debe iniciar con mayúscula y no contener caracteres especiales."));
+                    "Toda variable debe iniciar con mayúscula seguido de minusculas o guiones bajos, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'"));
           }
         }
         //Soporte opcional para acceder a índices de arreglos o matrices
@@ -613,7 +681,7 @@ void Asignacion() :
           | <INCREMENTO_AL_VALOR>
           | <DECREMENTO_AL_VALOR>
         )
-        <PUNTO_COMA>
+        PuntoYComaVirtual()
 
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
@@ -631,8 +699,8 @@ void Asignacion() :
   Gramatica para la impresión
 */
 
-// Regla para lo que va dentro del IMPRIMIR ("texto" + variable)
-void ExpresionImprimir() :
+// Regla para lo que va dentro del IMPRIMIR y LEER ("texto" + variable)
+void ExpresionConcatenada() :
 {}
 {
     ExpresionAritmetica() ( <SUMA> ExpresionAritmetica() )*
@@ -646,13 +714,13 @@ void Imprimir() :
 {}
 {
     try {
-        <IMPRIMIR_FUNCION> <ABRIR_PARENTESIS> ExpresionImprimir() <CERRAR_PARENTESIS> <PUNTO_COMA>
+        <IMPRIMIR_FUNCION> <ABRIR_PARENTESIS> ExpresionConcatenada() <CERRAR_PARENTESIS> PuntoYComaVirtual()
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
         String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
-            "Asegúrate de usar la estructura IMPRIMIR(valor);"));
+            "Asegúrate de usar la estructura IMPRIMIR(valor); o IMPRIMIR(\"Mensaje\" + Variable); "));
         recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
@@ -661,18 +729,18 @@ void Leer() :
 {}
 {
     try {
-        <LEER_FUNCION> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <PUNTO_COMA>
+        <LEER_FUNCION> <ABRIR_PARENTESIS> ExpresionConcatenada() <CERRAR_PARENTESIS> PuntoYComaVirtual()
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
         String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
-            "La estructura correcta es LEER(Variable);"));
+            "La estructura correcta es LEER(Variable); o LEER(\"Mensaje\" + Variable);"));
         recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
 
-// Operadores Relacionales (Asume que tienes estos tokens definidos)
+// Operadores Relacionales
 void OperadorRelacional() :
 {}
 {
@@ -744,14 +812,14 @@ void CondicionalSi() :
            <CERRAR_LLAVE>
 
       // El CONTRARIO (Else If) es opcional y puede repetirse (*)
-          (
+          ( LOOKAHEAD(1)
               <SI_CONTRARIO> <ABRIR_PARENTESIS> Condicion() <CERRAR_PARENTESIS> <ABRIR_LLAVE>
                   Sentencias()
               <CERRAR_LLAVE>
           )*
 
           // El SINO (Else) es opcional y solo aparece una vez (?)
-          (
+          ( LOOKAHEAD(1)
               <SI_SINO> <ABRIR_LLAVE>
                   Sentencias()
               <CERRAR_LLAVE>
@@ -786,7 +854,7 @@ void CondicionalSegun() :
             (
                 <CASO_SEGUN> Valor() <DOS_PUNTOS>
                     Sentencias()
-                <DETENER_SEGUN> <PUNTO_COMA>
+                <DETENER_SEGUN> PuntoYComaVirtual()
             )+
 
             // El DEFECTO es opcional (?)

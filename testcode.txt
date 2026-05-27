@@ -1,17 +1,3 @@
-INICIO {
-    // Cambio 1: Expresión Aritmética en IMPRIMIR
-    IMPRIMIR("Resultado: " + Variable_con_arreglo[0]);
-
-    // Cambio 2: Operaciones lógicas con paréntesis en Condicion
-    SI ( (5 > 3 && 2 < 4) || (10 == 10) ) {
-        IMPRIMIR("Las condiciones agrupadas funcionan");
-    }
-
-    // Cambio 3: Asignación de Operaciones booleanas a variables
-    BOOL Esmayor = 10 > 5 && 8 < 20;
-
-    // Cambio 4: Condiciones del lado derecho limitadas (Expresiones complejas en ambos lados)
-    SI ( (5 + 5) >= (3 * 3) ) {
-        IMPRIMIR("Ambos lados soportan expresiones matemáticas");
-    }
-} FIN
+INICIO{
+IMPRIMIR("El resultado es" A+B);
+}FIN

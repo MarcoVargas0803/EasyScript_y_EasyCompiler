@@ -1,0 +1,12 @@
+INICIO {
+    /* Esto es un comentario sin cerrar */
+
+    // Prueba 1: Falta punto y coma
+ENT Numero = 10;
+// Prueba 2: Falta paréntesis
+ENT Resultado = (5 * 2 + (10));
+ARREGLO ENT Nuevo_arreglo[4] = {1, 2, 3, 4};
+SI (Numero > 5) {
+    
+}
+} FIN

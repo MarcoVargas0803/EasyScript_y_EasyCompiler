@@ -1,5 +1,34 @@
+//Equipo 6
+/* Marco Antonio Vargas Valle 
+   Cesar Antonio Sanchez Herrera
+   Pacheco Angel Quintana
+*/ 
+
+/* 
+  Programas Varios con arreglos y matrices. 
+*/
+
 INICIO{
+
     ARREGLO TXT Nombres[3] = {"Marco", "Cesar", "Angel"};
-    ARREGLO TXT Nombres[Valor1**23];
+
+    //Operaciones con arreglos y matrices
+    ENT Suma = 0;
+    ARREGLO DEC Calificaciones[5] = {8.5, 9.0, 7.5, 10.0, 8.0};
+    MATRIZ DEC Matriz[2][2];
+
+    //Operaciones
+    Matriz[1][2] = Matriz[1][2] + 5;
+    DEC Promedio = Suma / 5;
+    ENT Numero = 14;
+    
+    //Impresiones
+    IMPRIMIR("El promedio final es: "+ Promedio);
+    
+   //Operaciones complejas
+
+   ENT Resultado = (Numero * 2) + (Suma / 2) - 1;
+   IMPRIMIR("Resultado complejo: " + Resultado);
+
 }FIN
 
