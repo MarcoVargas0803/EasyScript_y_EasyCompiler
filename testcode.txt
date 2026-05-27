@@ -1,7 +1,3 @@
-INICIO {
-ENT Contador = 0;
-ENT Resultado = 5;
-Contador--; // error '++' no es sentencia independiente
-IMPRIMIR ("Contador: " + Contador);
-} FIN
-
+INICIO{
+IMPRIMIR("El resultado es" A+B);
+}FIN

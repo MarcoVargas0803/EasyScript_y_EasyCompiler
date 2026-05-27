@@ -5,31 +5,34 @@
 */ 
 
 /* 
-  Programas Varios. 
+  Estructuras de control SEGÚN, MIENTRAS Y PARA. 
 */
 
 INICIO{
 
-}
-    ARREGLO DEC Calificaciones[5] = {8.5, 9.0, 7.5, 10.0, 8.0};
+    // PRUEBA DE SEGÚN 
+    ENT Dia_semana = 3;
 
-    Matriz[1][2] = Matriz[1][2] + 5;
+    SEGUN (Dia_semana) {
+        CASO 1: IMPRIMIR("Lunes"); DETENER;
+        CASO 2: IMPRIMIR("Martes"); DETENER;
+        CASO 3: IMPRIMIR("Miercoles"); DETENER;
+        CASO 4: IMPRIMIR("Jueves"); DETENER;
+        CASO 5: IMPRIMIR("Viernes"); DETENER;
+        DEFECTO: IMPRIMIR("Fin de semana o error"); 
+    }   
+    
+    // PRUEBA MIENTRAS (CONTADOR)
+    ENT Contador = 1;
 
-    PARA (ENT I = 0;I < Calificaciones;I++){
-    Suma = Suma + Calificaciones[I];
+    MIENTRAS (Contador <= 5) {
+        IMPRIMIR("Ciclo Mientras: " + Contador);
+        Contador = Contador + 1;
     }
 
-    DEC promedio = suma / calificaciones;
-
-    IMPRIMIR("El promedio final es: "/n + promedio);
-
-
-
-    ENT Numero = 14;
-
-    SI(Numero % 2==0){
-        IMPRIMIR(Numero + "es un numero par.");
-    }SINO{
-        IMPRIMIR(Numero + "es un numero impar.");
+    //Prueba PARA 
+    PARA (ENT Cont = 1; Cont <= 5; Cont--) {
+        IMPRIMIR("Ciclo Para: " + Cont);
     }
+
 }FIN

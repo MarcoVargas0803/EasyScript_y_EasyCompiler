@@ -5,7 +5,7 @@
 */ 
 
 /* 
-  Pruebas de variables, operaciones, estructuras de control. 
+  Pruebas de variables, operaciones, estructuras de control SI. 
 */
 
 //Inicio del programa
@@ -36,22 +36,15 @@ INICIO{
       //Impresión a pantalla 
 
       IMPRIMIR("Este es un mensaje de ejemplo");
-
       IMPRIMIR(Variable1);
-
       IMPRIMIR("Cantidad de materias:  " + CONST_Materias);     
 
       //Lectura de datos
-
-      LEER(Variable1);
-
-	
-
-      LEER(Variable1); 
+      LEER("Ingresa un valor: "+Valor_1);
 
       //Prueba Condicional "SI"
 
-       //Programa de edades
+      //Programa de edades
 
       ENT Edad_1 = 20; 
       ENT Edad_2 = 17;
@@ -80,19 +73,4 @@ INICIO{
 		IMPRIMIR("Num1 es el mayor de los 3");
 	}
 
-	SEGUN (Variable1) {
-			CASO Valor1:
-				// instrucciones
-				DETENER;
-			CASO Valor2:
-				// instrucciones
-				DETENER;
-			DEFECTO:
-			// instrucciones
-		}
-
-	 ENT Condicion; 
-       {
-		// bloque de código
-	}
 }FIN
