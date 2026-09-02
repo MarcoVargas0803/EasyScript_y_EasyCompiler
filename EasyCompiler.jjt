@@ -2,6 +2,14 @@
 options {
   IGNORE_CASE = false; // EasyScript distingue entre mayúsculas y minúsculas para sus variables y Constantes.
   STATIC = false;
+
+  /* ---------------------------------------------------------------
+     Opciones de JJTree (construcción automática del árbol sintáctico)
+     --------------------------------------------------------------- */
+  MULTI = false;             // Una sola clase de nodo (SimpleNode), diferenciada por su id.
+  NODE_DEFAULT_VOID = false; // Crea un nodo por cada producción sin necesidad de anotarlas.
+  TRACK_TOKENS = true;       // Cada nodo guarda su rango [primerToken .. ultimoToken].
+  VISITOR = false;           // Aún no se necesita; se activará en la fase semántica.
 }
 
 //Inicia el parser.
@@ -12,7 +20,11 @@ import java.util.List;       // Agregado para usar listas dinámicas
 
 public class EasyCompiler {
   // Declaramos la lista de forma estática para que la clase Main pueda imprimirla al final
-    public static List<ErrorCompilador> listaErrores = new ArrayList<>();
+    public static List<ErrorCompilador> listaErrores = new ArrayList<ErrorCompilador>(); // Tipo explicito: el parser de Java de JJTree no admite el operador diamante <>
+
+    // Se enciende cuando el catch de la regla raiz aborta el analisis: el arbol
+    // sintactico queda incompleto y Main debe advertirlo al imprimirlo.
+    public static boolean arbolParcial = false;
 
     // Tokens de sincronización para inicio de sentencias
     static final int[] SYNC_SENTENCIAS = {
@@ -314,7 +326,7 @@ void BloqueAnonimo() :
     <ABRIR_LLAVE> Sentencias() <CERRAR_LLAVE>
 }
 
-void Programa() :
+SimpleNode Programa() :
 {}
 {
   try{
@@ -346,9 +358,14 @@ void Programa() :
             consejo));
 
         // Como es la regla raíz consumimos hasta EOF para no generar más ruido
+        arbolParcial = true;
         while (getNextToken().kind != EOF) {}
   }
 
+  // jjtThis es el nodo que JJTree construyo para esta produccion: la raiz del arbol.
+  // Va despues del try/catch para devolverse igual cuando hubo error irrecuperable,
+  // solo que con los hijos parciales que alcanzo a acumular.
+  { return jjtThis; }
 }
 
 void TipoDato() :

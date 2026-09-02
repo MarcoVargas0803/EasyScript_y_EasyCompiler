@@ -1,4 +1,14 @@
 *.class
+
+# --- Generado por JJTree a partir de EasyCompiler.jjt ---
+# El archivo fuente que se edita y se versiona es EasyCompiler.jjt.
+EasyCompiler.jj
+Node.java
+SimpleNode.java
+EasyCompilerTreeConstants.java
+JJTEasyCompilerState.java
+
+# --- Generado por JavaCC a partir de EasyCompiler.jj ---
 EasyCompiler.java
 EasyCompilerConstants.java
 EasyCompilerTokenManager.java
@@ -6,3 +16,6 @@ ParseException.java
 SimpleCharStream.java
 Token.java
 TokenMgrError.java
+
+# Salida de compilacion
+out/
