@@ -1,0 +1,8 @@
+
+INICIO{
+SI (Edad_1 > Edad_2){
+      IMPRIMIR("El mayor de edad es: "+Edad_1);
+      }SINO{
+      IMPRIMIR("El mayor de edad es: "+Edad_2);
+      }
+}FIN

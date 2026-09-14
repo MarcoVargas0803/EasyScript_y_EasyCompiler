@@ -109,6 +109,35 @@ public class EasyCompiler {
             return "Se encontró '" + tokenEncontrado + "', pero se esperaba: " + esperadosStr;
         }
 
+    // -----------------------------------------------------------------------
+    // MÉTODO AUXILIAR 4: Reconstruye el texto fuente comprendido entre dos tokens.
+    // Lo usan las acciones semánticas de las declaraciones para guardar en la
+    // tabla de símbolos el valor con el que se inicializó el identificador.
+    // -----------------------------------------------------------------------
+    private String textoEntre(Token ini, Token fin) {
+        if (ini == null || fin == null) return "-";
+        StringBuilder sb = new StringBuilder();
+        Token t = ini;
+        Token previo = null;
+        int limite = 0;
+        while (t != null && limite < 40) {
+            if (previo != null) {
+                // Reproducimos el espaciado del código fuente: solo separamos si
+                // realmente había un espacio entre ambos tokens. Así "-10" se
+                // guarda como "-10" y no como "- 10".
+                if (t.beginLine != previo.endLine || t.beginColumn > previo.endColumn + 1) {
+                    sb.append(" ");
+                }
+            }
+            sb.append(t.image);
+            if (t == fin) break;
+            previo = t;
+            t = t.next;
+            limite++;
+        }
+        return sb.length() == 0 ? "-" : sb.toString();
+    }
+
         private void agregarError(String tipo, Token token, String mensaje, String sugerencia) {
             if (token != null) {
                 EasyCompiler.listaErrores.add(new ErrorCompilador(tipo, token.beginLine, token.beginColumn, mensaje, sugerencia));
@@ -298,6 +327,9 @@ SKIP: {
 void Sentencias() :
 {}
 {
+    // ACCIÓN SEMÁNTICA: cada par de llaves abre un ámbito nuevo en la tabla de
+    // símbolos. El cuerpo de INICIO{} es el ámbito 1; un SI anidado, el 2, etc.
+    { TablaSimbolos.abrirAmbito(); }
     (
          DeclaracionVariable()
       |  DeclaracionArreglo()
@@ -317,6 +349,7 @@ void Sentencias() :
       | <PUNTO_COMA>
       //Sentencia Vacia: Solo un punto y coma, para permitir sentencias vacías sin romper el programa.
     )*
+    { TablaSimbolos.cerrarAmbito(); }
 }
 
 // Bloque anónimo para recuperación de errores
@@ -368,14 +401,28 @@ SimpleNode Programa() :
   { return jjtThis; }
 }
 
-void TipoDato() :
-{}
+// ==========================================
+// TipoDato: ATRIBUTO SINTETIZADO (Aho, Figura 5.8, pág. 315)
+//
+// Equivale a las producciones 2 y 3 del libro:
+//      T -> int    { T.tipo = integer }
+//      T -> float  { T.tipo = float   }
+//
+// El tipo se calcula en el hijo y SUBE por el valor de retorno. Quien llama a
+// esta producción lo recibe y lo HEREDA hacia el identificador, igual que el
+// libro pasa T.tipo al atributo L.her en la producción 1: D -> T L.
+// ==========================================
+String TipoDato() :
+{ Token t; }
 {
-    <ENTERO_DATO> 
-    | <DECIMAL_DATO> 
-    | <BOOLEANO_DATO> 
-    | <CARACTER_DATO> 
-    | <TEXTO_DATO>
+    (
+        t = <ENTERO_DATO>
+      | t = <DECIMAL_DATO>
+      | t = <BOOLEANO_DATO>
+      | t = <CARACTER_DATO>
+      | t = <TEXTO_DATO>
+    )
+    { return t.image; }
 }
 
 void Valor() :
@@ -553,11 +600,16 @@ void PuntoYComaVirtual() :
 // Regla principal para declarar variables
 void DeclaracionVariable() :
 {
-  Token id; // Variable temporal para guardar el token
+  Token id;                     // id.entrada: el identificador que se instalará
+  String tipo = "?";            // L.her: tipo heredado que baja desde TipoDato()
+  Token ini = null;             // Primer token de la expresión inicializadora
+  boolean inicializada = false;
+  String valor = "-";
 }
 {
     try {
-        TipoDato()
+        // El tipo se SINTETIZA aquí y se HEREDA hacia el identificador de abajo.
+        tipo = TipoDato()
 
         ( id = <VARIABLE> | id = <CONSTANTE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
 
@@ -570,10 +622,28 @@ void DeclaracionVariable() :
             }
         }
 
-        ( <IGUAL_ASIGNACION> Condicion() )?
+        (
+            <IGUAL_ASIGNACION>
+            { ini = getToken(1); }
+            Condicion()
+            { inicializada = true; valor = textoEntre(ini, getToken(0)); }
+        )?
+
+        {
+            // ACCIÓN SEMÁNTICA: agregarTipo(id.entrada, L.her)
+            // Es la regla de las producciones 4 y 5 de la Figura 5.8 (Aho, pág. 315).
+            // La posición de esta acción importa: al colocarla después de la
+            // inicialización opcional, ya se sabe si el identificador quedó
+            // inicializado y con qué valor (Aho, §5.4: "una acción en el cuerpo de
+            // una producción se ejecuta tan pronto como los símbolos gramaticales a
+            // la izquierda de la acción tengan coincidencias").
+            if (id.kind != ERROR_IDENTIFICADOR_INVALIDO) {
+                String categoria = (id.kind == CONSTANTE) ? "CONSTANTE" : "VARIABLE";
+                TablaSimbolos.agregarTipo(id, tipo, categoria, "-", inicializada, valor);
+            }
+        }
+
         PuntoYComaVirtual()
-
-
 
     } catch (ParseException e) {
         int[] pos = obtenerPosicion(e);
@@ -583,7 +653,7 @@ void DeclaracionVariable() :
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
             "Asegúrate de definir el tipo de dato, el nombre correctamente y terminar con un punto y coma."));
-            
+
         // Usamos Sync Tokens para detenernos si vemos el inicio de otra sentencia
         recuperarHastaSync(SYNC_SENTENCIAS);
     }
@@ -594,11 +664,18 @@ void DeclaracionVariable() :
 // Ejemplo: ARREGLO ENT Calificaciones[10];
 // ==========================================
 void DeclaracionArreglo() :
-{ Token id; }
+{
+  Token id;
+  String tipo = "?";            // Tipo base heredado hacia el identificador
+  Token ini = null;
+  String dim = "[]";            // Dimensión declarada, tal como se escribió
+  boolean inicializada = false;
+  String valor = "-";
+}
 {
     try {
-        <ARREGLO_ESTRUCTURA> TipoDato() 
-        
+        <ARREGLO_ESTRUCTURA> tipo = TipoDato()
+
         ( id = <VARIABLE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
         {
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
@@ -607,13 +684,28 @@ void DeclaracionArreglo() :
                     "Toda variable debe iniciar con mayúscula seguido de minusculas o guiones bajos, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'."));
             }
         }
-        
+
         // El tamaño del arreglo va entre corchetes
-        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
+        <ABRIR_CORCHETE>
+        { ini = getToken(1); }
+        ExpresionAritmetica()
+        { dim = "[" + textoEntre(ini, getToken(0)) + "]"; }
+        <CERRAR_CORCHETE>
 
         //Inicialización del Arreglo Opcional
         (
-        <IGUAL_ASIGNACION> <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE> )?
+        <IGUAL_ASIGNACION>
+        { ini = getToken(1); }
+        <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE>
+        { inicializada = true; valor = textoEntre(ini, getToken(0)); }
+        )?
+
+        {
+            // ACCIÓN SEMÁNTICA: se instala el arreglo con su tipo base y su dimensión.
+            if (id.kind != ERROR_IDENTIFICADOR_INVALIDO) {
+                TablaSimbolos.agregarTipo(id, tipo, "ARREGLO", dim, inicializada, valor);
+            }
+        }
 
         PuntoYComaVirtual()
     } catch (ParseException e) {
@@ -621,7 +713,7 @@ void DeclaracionArreglo() :
         String detalleDinamico = obtenerDetalleSintactico(e);
         listaErrores.add(new ErrorCompilador("Sintáctico", pos[0], pos[1],
             detalleDinamico,
-            "Estructura inválida. Usa: ARREGLO Tipo Nombre[Tamaño]; o ARREGLO Tipo Nombre[Tamaño] = {{valor1,valor2},{valor3,valor4}};"));
+            "Estructura inválida. Usa: ARREGLO Tipo Nombre[Tamaño]; o ARREGLO Tipo Nombre[Tamaño] = {valor1,valor2};"));
         recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
@@ -631,11 +723,19 @@ void DeclaracionArreglo() :
 // Ejemplo: MATRIZ DEC Tablero[5][5];
 // ==========================================
 void DeclaracionMatriz() :
-{ Token id; }
+{
+  Token id;
+  String tipo = "?";
+  Token ini = null;
+  String dimFilas = "[]";
+  String dimColumnas = "[]";
+  boolean inicializada = false;
+  String valor = "-";
+}
 {
     try {
-        <MATRIZ_ESTRUCTURA> TipoDato() 
-        
+        <MATRIZ_ESTRUCTURA> tipo = TipoDato()
+
         ( id = <VARIABLE> | id = <ERROR_IDENTIFICADOR_INVALIDO> )
         {
             if (id.kind == ERROR_IDENTIFICADOR_INVALIDO) {
@@ -644,17 +744,36 @@ void DeclaracionMatriz() :
                     "Toda variable debe iniciar con mayúscula seguido de minusculas o guiones bajos, no debe empezar con números. Ejemplo: 'Variable_1' o 'CONST_Mi_Nombre'"));
             }
         }
-        
-        // Las matrices requieren dos dimensiones
-        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> 
-        <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
 
-        ( 
-            <IGUAL_ASIGNACION> <ABRIR_LLAVE> 
+        // Las matrices requieren dos dimensiones
+        <ABRIR_CORCHETE>
+        { ini = getToken(1); }
+        ExpresionAritmetica()
+        { dimFilas = "[" + textoEntre(ini, getToken(0)) + "]"; }
+        <CERRAR_CORCHETE>
+        <ABRIR_CORCHETE>
+        { ini = getToken(1); }
+        ExpresionAritmetica()
+        { dimColumnas = "[" + textoEntre(ini, getToken(0)) + "]"; }
+        <CERRAR_CORCHETE>
+
+        (
+            <IGUAL_ASIGNACION>
+            { ini = getToken(1); }
+            <ABRIR_LLAVE>
                 <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE>
                 ( <COMA> <ABRIR_LLAVE> Condicion() (<COMA> Condicion())* <CERRAR_LLAVE> )*
-            <CERRAR_LLAVE> 
+            <CERRAR_LLAVE>
+            { inicializada = true; valor = textoEntre(ini, getToken(0)); }
         )?
+
+        {
+            // ACCIÓN SEMÁNTICA: se instala la matriz con su tipo base y sus dos dimensiones.
+            if (id.kind != ERROR_IDENTIFICADOR_INVALIDO) {
+                TablaSimbolos.agregarTipo(id, tipo, "MATRIZ", dimFilas + dimColumnas, inicializada, valor);
+            }
+        }
+
         PuntoYComaVirtual()
 
     } catch (ParseException e) {
@@ -666,7 +785,6 @@ void DeclaracionMatriz() :
         recuperarHastaSync(SYNC_SENTENCIAS);
     }
 }
-
 
 // ==========================================
 // REGLA DE ASIGNACIÓN (Reasignar valores o Incrementar/Decrementar)

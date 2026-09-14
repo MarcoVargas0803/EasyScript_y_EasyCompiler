@@ -49,6 +49,8 @@ public class Main {
 
             imprimirArbol(raiz, arbolCompleto);
 
+            imprimirTablaSimbolos();
+
             if (EasyCompiler.listaErrores.isEmpty()) {
                 System.out.println(ANSI_GREEN + ">> ¡Excelente! No se encontraron errores en el código fuente." + ANSI_RESET);
             } else {
@@ -100,6 +102,62 @@ public class Main {
         } catch (FileNotFoundException e) {
             System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
         }
+    }
+
+    /**
+     * Imprime la tabla de símbolos que las acciones semánticas fueron llenando
+     * durante el análisis sintáctico.
+     *
+     * Cada renglón es una entrada instalada por agregarTipo(), la función que
+     * Aho deja como supuesta en el Ejemplo 5.10 (Compiladores, 2a ed., pág. 316).
+     */
+    private static void imprimirTablaSimbolos() {
+        System.out.println(ANSI_BLUE + "\n============================================================");
+        System.out.println(" \uD83D\uDCD3 TABLA DE SIMBOLOS");
+        System.out.println("============================================================" + ANSI_RESET);
+
+        if (TablaSimbolos.estaVacia()) {
+            System.out.println(ANSI_YELLOW
+                + "  (vacia) No se declaro ningun identificador en este programa."
+                + ANSI_RESET);
+            return;
+        }
+
+        String linea = "+------+--------------------------+-------+-----------+------------+-------+--------+------+------------------------+-------+---------+";
+
+        System.out.println(linea);
+        System.out.printf("| %-4s | %-24s | %-5s | %-9s | %-10s | %-5s | %-6s | %-4s | %-22s | %-5s | %-7s |%n",
+                "#", "NOMBRE", "TIPO", "CATEGORIA", "DIMENSION", "NIVEL", "BLOQUE", "INIC", "VALOR", "LINEA", "COLUMNA");
+        System.out.println(linea);
+
+        java.util.List<Simbolo> simbolos = TablaSimbolos.obtenerTodos();
+        for (int i = 0; i < simbolos.size(); i++) {
+            Simbolo s = simbolos.get(i);
+            System.out.printf("| %-4d | %-24s | %-5s | %-9s | %-10s | %-5d | %-6d | %-4s | %-22s | %-5d | %-7d |%n",
+                    (i + 1),
+                    recortar(s.nombre, 24),
+                    s.tipo,
+                    s.categoria,
+                    recortar(s.dimensiones, 10),
+                    s.nivel,
+                    s.bloque,
+                    (s.inicializada ? "SI" : "NO"),
+                    recortar(s.valor, 22),
+                    s.linea,
+                    s.columna);
+        }
+        System.out.println(linea);
+        System.out.println(ANSI_BLUE + "  Total de simbolos declarados: " + simbolos.size() + ANSI_RESET);
+        System.out.println(ANSI_BLUE
+            + "  NIVEL = profundidad de anidamiento; BLOQUE = ambito concreto (el SI y el SINO"
+            + "\n  comparten nivel pero son bloques distintos)." + ANSI_RESET);
+    }
+
+    /** Corta un texto que no cabe en su columna y lo cierra con puntos suspensivos. */
+    private static String recortar(String texto, int ancho) {
+        if (texto == null) return "-";
+        if (texto.length() <= ancho) return texto;
+        return texto.substring(0, ancho - 3) + "...";
     }
 
     /**
