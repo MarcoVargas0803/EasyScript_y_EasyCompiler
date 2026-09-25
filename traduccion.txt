@@ -1,0 +1,60 @@
+// traduccion.txt
+//
+// Programa correcto que ejercita cada construccion del esquema de traduccion.
+// No debe producir ningun error ni advertencia, y el codigo de tres direcciones
+// que genera se revisa con:
+//
+//     .\build.ps1 -Ejecutar traduccion.txt -Codigo
+
+INICIO{
+    ENT A = 2;
+    ENT B = 3;
+    DEC D = 1.5;
+
+    // Conversion implicita ENT -> DEC: debe aparecer un cuadruplo "ampliar"
+    DEC Mezcla = A + D;
+
+    // SI con CONTRARIO y SINO: tres caminos y una sola etiqueta de salida
+    SI (A > B) {
+        IMPRIMIR("A es mayor");
+    } CONTRARIO (A == B) {
+        IMPRIMIR("son iguales");
+    } SINO {
+        IMPRIMIR("B es mayor");
+    }
+
+    // MIENTRAS: la etiqueta de entrada va antes de la condicion
+    MIENTRAS (A < 10) {
+        A = A + 1;
+    }
+
+    // PARA: el paso se emite despues del cuerpo
+    PARA (ENT I = 0; I < 3; I++) {
+        B = B + I;
+    }
+
+    // Arreglo con carga inicial y acceso indexado
+    ARREGLO ENT Notas[3] = {7, 8, 9};
+    Notas[1] = 10;
+    ENT Una = Notas[2];
+
+    // Matriz: el desplazamiento se calcula como (fila * columnas + columna) * ancho
+    MATRIZ ENT Tabla[2][3];
+    Tabla[1][2] = 5;
+    ENT Otra = Tabla[0][1];
+
+    // SEGUN con DEFECTO: las pruebas se agrupan al final
+    SEGUN (A) {
+     CASO 1:
+        IMPRIMIR("uno");
+        DETENER;
+     CASO 2:
+        IMPRIMIR("dos");
+        DETENER;
+     DEFECTO:
+        IMPRIMIR("otro");
+    }
+
+    LEER(A);
+    IMPRIMIR("Fin: " + A + B + D + Mezcla + Una + Otra);
+}FIN

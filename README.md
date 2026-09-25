@@ -1,8 +1,24 @@
 # EasyCompiler
 
-Compilador del lenguaje **EasyScript**. Actualmente implementa las fases de
-**análisis léxico** y **análisis sintáctico**, e imprime el **árbol sintáctico**
-del código analizado.
+Compilador del lenguaje **EasyScript**. Implementa las fases de **análisis
+léxico**, **análisis sintáctico** y **análisis semántico**, incluido el **esquema
+de traducción** a código de tres direcciones. Imprime el **árbol sintáctico**
+decorado con sus operadores y tipos, la **tabla de símbolos** con las direcciones
+de memoria de cada dato, y un reporte de errores de las tres fases.
+
+El código intermedio se genera siempre pero no se imprime, porque esa parte
+todavía es preliminar. Para verlo:
+
+```powershell
+.\build.ps1 -Ejecutar traduccion.txt -Codigo
+```
+
+Dos reglas del lenguaje que conviene saber antes de escribir código:
+
+* **Hay que declarar antes de usar.** El análisis recorre el programa de arriba
+  abajo, asi que una variable usada antes de su declaración es un error.
+* **`ENT` se convierte a `DEC` sin avisar, pero `DEC` a `ENT` es un error**,
+  porque perdería los decimales en silencio.
 
 ---
 

@@ -1,0 +1,35 @@
+// cortocircuito.txt
+//
+// Comprueba el cortocircuito de && y ||, y las dos formas en que puede
+// acabar una condicion: dirigiendo un salto o guardada en una variable.
+
+INICIO{
+    ENT A = 1;
+    ENT B = 2;
+    ENT C = 3;
+
+    // Y logico: si la primera es falsa, la segunda no se evalua
+    SI (A > 1 && B > 2) {
+        IMPRIMIR("ambas");
+    }
+
+    // O logico: si la primera es cierta, la segunda no se evalua
+    SI (A > 1 || B > 2) {
+        IMPRIMIR("alguna");
+    }
+
+    // Encadenado: tres condiciones, una sola salida falsa
+    SI (A > 0 && B > 0 && C > 0) {
+        IMPRIMIR("las tres");
+    }
+
+    // La misma condicion, pero guardada: hay que producir un booleano
+    BOOL Guardada = A > 1 && B > 2;
+    IMPRIMIR("valor: " + Guardada);
+
+    // Dentro de un ciclo
+    MIENTRAS (A < 5 && B < 5) {
+        A = A + 1;
+        B = B + 1;
+    }
+}FIN

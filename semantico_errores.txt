@@ -1,0 +1,150 @@
+// semantico_errores.txt
+//
+// Catalogo completo de errores semanticos. Cada bloque dispara la regla que
+// indica su comentario, y el analisis debe llegar hasta el final del archivo
+// sin abandonar.
+//
+// Sirve para dos cosas: comprobar que ninguna regla se rompio al tocar el
+// codigo, y como demostracion de la fase semantica.
+
+INICIO{
+    // --- material de trabajo -------------------------------------------
+    ENT Entero = 5;
+    DEC Decimal = 2.5;
+    BOOL Bandera = VERDADERO;
+    TXT Texto = "hola";
+    DEC CONST_Pi = 3.1416;
+    ARREGLO ENT Numeros[3];
+    MATRIZ ENT Tablero[2][2];
+
+    // SEM-01  el mismo nombre dos veces en el mismo bloque
+    ENT Repetida = 1;
+    ENT Repetida = 2;
+
+    // SEM-02  constante declarada sin valor
+    ENT CONST_Sin_valor;
+
+    // SEM-03  inicializar con un tipo que no encaja
+    ENT Mal_tipo = VERDADERO;
+
+    // SEM-04  DEC hacia ENT perderia los decimales
+    ENT Truncado = 3.1416;
+
+    // SEM-05  tamano de arreglo invalido
+    ARREGLO ENT Mal_tamano[0];
+
+    // SEM-06  menos valores de los declarados
+    ARREGLO ENT Pocos[5] = {1, 2};
+
+    // SEM-08  un valor del tipo equivocado en la lista
+    ARREGLO ENT Mezclados[2] = {1, "dos"};
+
+    // SEM-10  identificador no declarado
+    IMPRIMIR(Fantasma);
+
+    // SEM-11  asignar a algo no declarado
+    Fantasma_dos = 1;
+
+    // SEM-12  reasignar una constante
+    CONST_Pi = 1.0;
+
+    // SEM-14  incrementar algo que no es numero
+    Texto++;
+
+    // SEM-15  arreglo usado sin indice
+    Entero = Numeros;
+
+    // SEM-16  variable simple usada con indice
+    Entero[0] = 1;
+
+    // SEM-17  matriz con un solo indice
+    Tablero[0] = 1;
+
+    // SEM-18  indice que no es entero
+    Numeros[Decimal] = 1;
+
+    // SEM-19  indice fuera del rango declarado
+    Numeros[9] = 1;
+
+    // SEM-20  aritmetica sobre BOOL
+    ENT Aritmetica = Bandera * 2;
+
+    // SEM-21  modulo con decimales
+    DEC Modulo = Decimal % 2;
+
+    // SEM-22  division entre cero constante
+    ENT Cero = Entero / 0;
+
+    // SEM-23  comparar tipos que no se comparan
+    BOOL Relacional = Bandera > Entero;
+
+    // SEM-24  ordenar texto
+    BOOL Orden = Texto > "otro";
+
+    // SEM-25  operador logico sobre algo que no es BOOL
+    BOOL Logico = Entero && Bandera;
+
+    // SEM-26  negar algo que no es BOOL
+    BOOL Negado = !!Entero;
+
+    // SEM-27  menos unario sobre texto
+    TXT Signo = -Texto;
+
+    // SEM-28  condicion que no es booleana
+    SI (Entero) {
+        IMPRIMIR("nunca");
+    }
+
+    // SEM-29  asignacion incompatible
+    Entero = "texto";
+
+    // SEM-34  literal entero que no cabe en ENT
+    ENT Enorme = 99999999999;
+
+    // SEM-37  LEER sin ningun destino donde guardar
+    LEER("solo un mensaje");
+
+    // SEM-38  LEER sobre una constante
+    LEER(CONST_Pi);
+
+    // SEM-30  la variable de control del SEGUN debe ser ENT, LETRA o TXT
+    SEGUN (Decimal) {
+     CASO 1:
+        IMPRIMIR("uno");
+        DETENER;
+    }
+
+    // SEM-31 y SEM-32 y SEM-33  valores de CASO invalidos
+    SEGUN (Entero) {
+     CASO 'a':
+        IMPRIMIR("tipo que no compara con ENT");
+        DETENER;
+     CASO Entero:
+        IMPRIMIR("no es un literal");
+        DETENER;
+     CASO 1:
+        IMPRIMIR("primera vez");
+        DETENER;
+     CASO 1:
+        IMPRIMIR("repetido");
+        DETENER;
+    }
+
+    // ADV-02  se usa antes de recibir valor
+    ENT Sin_valor;
+    IMPRIMIR(Sin_valor);
+
+    // ADV-03  una declaracion que tapa otra de fuera
+    MIENTRAS (Entero > 0) {
+        ENT Decimal = 1;
+        IMPRIMIR(Decimal);
+        Entero = Entero - 1;
+    }
+
+    // ADV-04  condicion constante
+    MIENTRAS (FALSO) {
+        IMPRIMIR("inalcanzable");
+    }
+
+    // ADV-01  Bandera y Tablero se declararon y no se usaron en ningun sitio
+}FIN

@@ -7,6 +7,9 @@ Node.java
 SimpleNode.java
 EasyCompilerTreeConstants.java
 JJTEasyCompilerState.java
+AST*.java
+EasyCompilerVisitor.java
+EasyCompilerDefaultVisitor.java
 
 # --- Generado por JavaCC a partir de EasyCompiler.jj ---
 EasyCompiler.java
@@ -19,3 +22,6 @@ TokenMgrError.java
 
 # Salida de compilacion
 out/
+
+# Salida capturada para comparar regresiones (regla de oro de plan_correcciones.md)
+baseline/

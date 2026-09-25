@@ -16,17 +16,31 @@ public class Main {
                 System.out.println("Error: Debes especificar un archivo. Ejemplo: java Main codigo1.txt");
                 System.out.println("Opciones: --arbol-completo   Muestra la derivación literal, sin colapsar");
                 System.out.println("                             los niveles intermedios de las expresiones.");
+                System.out.println("          --codigo-intermedio Muestra el codigo de tres direcciones que genera");
+                System.out.println("                             el esquema de traduccion.");
                 return;
             }
 
             // La bandera puede venir en cualquier posición, así que args[0] sigue
             // siendo el nombre del archivo.
             boolean arbolCompleto = false;
+            // El codigo intermedio se genera SIEMPRE, pero no se imprime salvo
+            // que se pida. La consola se queda con sus tres bloques de siempre:
+            // arbol, tabla de simbolos y errores.
+            boolean mostrarCodigo = false;
             for (String arg : args) {
                 if (arg.equals("--arbol-completo")) {
                     arbolCompleto = true;
                 }
+                if (arg.equals("--codigo-intermedio")) {
+                    mostrarCodigo = true;
+                }
             }
+
+            // El estado de la tabla de simbolos es estatico: se limpia antes de
+            // empezar para que la numeracion de bloques arranque siempre en cero.
+            TablaSimbolos.reiniciar();
+            GeneradorCodigo.reiniciar();
 
             // Abrimos el archivo de texto
             FileInputStream archivo = new FileInputStream(args[0]);
@@ -47,17 +61,55 @@ public class Main {
                 System.out.println(">> Analisis interrumpido por error léxico fatal.");
             }
 
+            // ---------------------------------------------------------------
+            // FASE SEMANTICA
+            //
+            // Va aqui, entre el parseo y la impresion, por dos razones: llena la
+            // tabla de simbolos que se imprime justo despues, y sus errores
+            // tienen que entrar en listaErrores antes del reporte final.
+            // ---------------------------------------------------------------
+            new AnalizadorSemantico().analizar(raiz);
+
             imprimirArbol(raiz, arbolCompleto);
 
             imprimirTablaSimbolos();
+
+            if (mostrarCodigo) {
+                imprimirCodigoIntermedio();
+            }
+
+            ordenarErrores();
+
+            // Las advertencias se cuentan aparte de los errores: senalan codigo
+            // sospechoso (una variable declarada y nunca usada, una que se lee
+            // antes de tener valor), no codigo invalido. Sumarlas al mismo total
+            // haria parecer roto un programa que en realidad compila bien.
+            int totalErrores = 0;
+            int totalAdvertencias = 0;
+            for (int i = 0; i < EasyCompiler.listaErrores.size(); i++) {
+                if ("Advertencia".equals(EasyCompiler.listaErrores.get(i).tipo)) {
+                    totalAdvertencias++;
+                } else {
+                    totalErrores++;
+                }
+            }
+            String color = (totalErrores > 0) ? ANSI_RED : ANSI_YELLOW;
 
             if (EasyCompiler.listaErrores.isEmpty()) {
                 System.out.println(ANSI_GREEN + ">> ¡Excelente! No se encontraron errores en el código fuente." + ANSI_RESET);
             } else {
 
-                // Cabecera principal
-                System.out.println(ANSI_RED + "\n============================================================");
-                System.out.println(" ⚠\uFE0F SE ENCONTRARON " + EasyCompiler.listaErrores.size() + " ERRORES DURANTE LA COMPILACIÓN ⚠\uFE0F");
+                String resumen;
+                if (totalErrores > 0 && totalAdvertencias > 0) {
+                    resumen = " SE ENCONTRARON " + totalErrores + " ERRORES Y "
+                            + totalAdvertencias + " ADVERTENCIA(S)";
+                } else if (totalErrores > 0) {
+                    resumen = " SE ENCONTRARON " + totalErrores + " ERRORES DURANTE LA COMPILACION";
+                } else {
+                    resumen = " EL CODIGO COMPILA, CON " + totalAdvertencias + " ADVERTENCIA(S)";
+                }
+                System.out.println(color + "\n============================================================");
+                System.out.println(resumen);
                 System.out.println("============================================================" + ANSI_RESET);
 
                 // Recorremos la lista e imprimimos cada error en formato de "Tarjeta"
@@ -65,15 +117,21 @@ public class Main {
                     ErrorCompilador error = EasyCompiler.listaErrores.get(i);
 
                     // Fila 1: Encabezado del error con su ubicación
+                    // El codigo (SEM-04, ADV-01...) identifica la regla que salto,
+                    // sin depender del texto del mensaje.
+                    String etiquetaTipo = error.tipo;
+                    if (error.codigo != null && !"-".equals(error.codigo)) {
+                        etiquetaTipo = error.tipo + " " + error.codigo;
+                    }
                     System.out.printf( ANSI_BLUE +"\n[ Error %d ] --- Tipo: %s | Línea: %d | Columna: %d \n" + ANSI_RESET,
-                            (i + 1), error.tipo, error.linea, error.columna);
+                            (i + 1), etiquetaTipo, error.linea, error.columna);
 
                     // Fila 2 y 3: Detalle y Consejo
                     System.out.println(ANSI_RED + "  ❌ Detalle : " + error.detalle + ANSI_RESET);
                     System.out.println("  💡 Consejo : " + error.consejo + ANSI_RESET);
                 }
 
-                System.out.println(ANSI_RED + "\n============================================================" + ANSI_RESET);
+                System.out.println(color + "\n============================================================" + ANSI_RESET);
 
 
 
@@ -105,6 +163,75 @@ public class Main {
     }
 
     /**
+     * Imprime el codigo de tres direcciones que genero el esquema de traduccion.
+     *
+     * Solo se llama con la bandera --codigo-intermedio. La salida normal del
+     * compilador no lo incluye, porque esta fase todavia es preliminar y la
+     * consola debe seguir mostrando lo mismo de siempre.
+     *
+     * Se muestran las dos formas: el cuadruplo con sus cuatro casillas, que es
+     * la estructura real, y la instruccion escrita como se leeria, que es lo
+     * unico que se entiende de un vistazo.
+     */
+    private static void imprimirCodigoIntermedio() {
+        System.out.println(ANSI_BLUE + "\n============================================================");
+        System.out.println(" CODIGO INTERMEDIO - CUADRUPLOS");
+        System.out.println("============================================================" + ANSI_RESET);
+
+        java.util.List<Cuadruplo> codigo = GeneradorCodigo.obtenerCodigo();
+        if (codigo.isEmpty()) {
+            System.out.println(ANSI_YELLOW + "  (vacio) No se genero ninguna instruccion." + ANSI_RESET);
+            return;
+        }
+
+        String borde = "+-------+------------+------------+------------+------------+";
+        System.out.println(borde);
+        System.out.printf("| %-5s | %-10s | %-10s | %-10s | %-10s |   %s%n",
+                "#", "OPERADOR", "ARG1", "ARG2", "RESULTADO", "INSTRUCCION");
+        System.out.println(borde);
+        for (int i = 0; i < codigo.size(); i++) {
+            Cuadruplo c = codigo.get(i);
+            System.out.printf("| %-5d | %-10s | %-10s | %-10s | %-10s |   %s%n",
+                    c.indice,
+                    recortar(c.operador, 10),
+                    recortar(c.arg1, 10),
+                    recortar(c.arg2, 10),
+                    recortar(c.resultado, 10),
+                    c.comentario);
+        }
+        System.out.println(borde);
+        System.out.println(ANSI_BLUE + "  Total de instrucciones: " + codigo.size() + ANSI_RESET);
+
+        java.util.List<String> rotas = GeneradorCodigo.etiquetasRotas();
+        if (!rotas.isEmpty()) {
+            System.out.println(ANSI_RED + "  ERROR INTERNO: hay saltos a etiquetas que no existen: "
+                + rotas + ANSI_RESET);
+        }
+    }
+
+    /**
+     * Ordena los errores por posicion en el codigo fuente.
+     *
+     * Hace falta porque las tres fases llenan la lista en momentos distintos:
+     * los lexicos y sintacticos durante el parseo, y los semanticos despues, en
+     * la pasada sobre el arbol. Sin ordenar, un error de la linea 3 aparece
+     * detras de uno de la linea 100 y el reporte deja de leerse de arriba abajo.
+     *
+     * La ordenacion es ESTABLE, asi que dos errores en la misma posicion
+     * conservan el orden en que se detectaron: primero el lexico, luego el
+     * sintactico, luego el semantico, que es el orden en que se explican.
+     */
+    private static void ordenarErrores() {
+        java.util.Collections.sort(EasyCompiler.listaErrores,
+            new java.util.Comparator<ErrorCompilador>() {
+                public int compare(ErrorCompilador a, ErrorCompilador b) {
+                    if (a.linea != b.linea) return a.linea - b.linea;
+                    return a.columna - b.columna;
+                }
+            });
+    }
+
+    /**
      * Imprime la tabla de símbolos que las acciones semánticas fueron llenando
      * durante el análisis sintáctico.
      *
@@ -123,34 +250,46 @@ public class Main {
             return;
         }
 
-        String linea = "+------+--------------------------+-------+-----------+------------+-------+--------+------+------------------------+-------+---------+";
+        // La tabla de direcciones (tema 1.6) no es una tabla aparte: son tres
+        // columnas mas de esta, porque describen los MISMOS simbolos. ANCHO son
+        // los bytes que ocupa, DESPL su desplazamiento dentro de su bloque y DIR
+        // la direccion absoluta (Aho, Compiladores 2a ed., seccion 6.3.4).
+        String linea = "+------+----------------------+-------+-----------+------------+-------+--------+------+--------------------+-------+---------+-------+-------+-------+";
 
         System.out.println(linea);
-        System.out.printf("| %-4s | %-24s | %-5s | %-9s | %-10s | %-5s | %-6s | %-4s | %-22s | %-5s | %-7s |%n",
-                "#", "NOMBRE", "TIPO", "CATEGORIA", "DIMENSION", "NIVEL", "BLOQUE", "INIC", "VALOR", "LINEA", "COLUMNA");
+        System.out.printf("| %-4s | %-20s | %-5s | %-9s | %-10s | %-5s | %-6s | %-4s | %-18s | %-5s | %-7s | %-5s | %-5s | %-5s |%n",
+                "#", "NOMBRE", "TIPO", "CATEGORIA", "DIMENSION", "NIVEL", "BLOQUE", "INIC", "VALOR", "LINEA", "COLUMNA",
+                "ANCHO", "DESPL", "DIR");
         System.out.println(linea);
 
         java.util.List<Simbolo> simbolos = TablaSimbolos.obtenerTodos();
         for (int i = 0; i < simbolos.size(); i++) {
             Simbolo s = simbolos.get(i);
-            System.out.printf("| %-4d | %-24s | %-5s | %-9s | %-10s | %-5d | %-6d | %-4s | %-22s | %-5d | %-7d |%n",
+            System.out.printf("| %-4d | %-20s | %-5s | %-9s | %-10s | %-5d | %-6d | %-4s | %-18s | %-5d | %-7d | %-5d | %-5d | %-5d |%n",
                     (i + 1),
-                    recortar(s.nombre, 24),
+                    recortar(s.nombre, 20),
                     s.tipo,
                     s.categoria,
                     recortar(s.dimensiones, 10),
                     s.nivel,
                     s.bloque,
                     (s.inicializada ? "SI" : "NO"),
-                    recortar(s.valor, 22),
+                    recortar(s.valor, 18),
                     s.linea,
-                    s.columna);
+                    s.columna,
+                    s.ancho,
+                    s.desplazamiento,
+                    s.direccion);
         }
         System.out.println(linea);
-        System.out.println(ANSI_BLUE + "  Total de simbolos declarados: " + simbolos.size() + ANSI_RESET);
+        System.out.println(ANSI_BLUE + "  Total de simbolos declarados: " + simbolos.size()
+            + "   |   Memoria total para datos: " + TablaSimbolos.tamanoDelMarco() + " bytes" + ANSI_RESET);
         System.out.println(ANSI_BLUE
             + "  NIVEL = profundidad de anidamiento; BLOQUE = ambito concreto (el SI y el SINO"
-            + "\n  comparten nivel pero son bloques distintos)." + ANSI_RESET);
+            + "\n  comparten nivel pero son bloques distintos)."
+            + "\n  ANCHO en bytes: ENT 4 | DEC 8 | BOOL 1 | LETRA 2 | TXT 4 (referencia)."
+            + "\n  DESPL se reinicia en cada bloque: dos bloques hermanos comparten direcciones porque"
+            + "\n  no estan vivos a la vez." + ANSI_RESET);
     }
 
     /** Corta un texto que no cabe en su columna y lo cierra con puntos suspensivos. */

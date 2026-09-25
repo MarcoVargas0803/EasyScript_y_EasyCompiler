@@ -66,21 +66,30 @@ que verificar que no se rompa el balanceo de llaves.
 
 ---
 
-## 3. Precedencia de `**` y del menos unario
+## 3. Precedencia de `**` y del menos unario — RESUELTO
 
-Ambos casos se aceptan hoy sin error, así que la agrupación ya quedó decidida por la
-forma del árbol:
+Los dos casos se agrupaban al revés de lo convencional:
 
-| Código | Cómo lo agrupa la gramática | Lo convencional |
+| Código | Antes | Ahora |
 |---|---|---|
-| `2 ** 3 ** 2` | `(2**3)**2` = 64 — izquierda | derecha → 512 |
+| `2 ** 3 ** 2` | `(2**3)**2` = 64 | `2**(3**2)` = 512 |
 | `-2 ** 2` | `(-2)**2` = 4 | `-(2**2)` = −4 |
 
-**Propuesta.** `ExpresionNivel3` debe ser recursiva a la derecha para `**`; el
-`( <RESTA> )?` de `ExpresionNivel4` debe subir a un nivel de menor precedencia.
+**Cómo se corrigió.** Se intercambiaron los dos niveles. `ExpresionNivel3` pasó a
+ser el menos unario y `ExpresionNivel4` el exponente, y este último se volvió
+recursivo a la derecha en vez de usar un bucle `(...)*`. El operando derecho del
+exponente vuelve a `ExpresionNivel3` para que `2 ** -3` siga siendo válido.
 
-**Prioridad alta ahora que el árbol existe:** en cuanto la fase semántica evalúe el
-árbol, estos dos dejan de ser teóricos y producen resultados numéricos incorrectos.
+Se verifica en `precedencia.txt` leyendo el código intermedio, que es donde la
+agrupación se ve sin ambigüedad:
+
+```powershell
+.uild.ps1 -Ejecutar precedencia.txt -Codigo
+```
+
+**Nota sobre las advertencias de *choice conflict*:** siguen siendo 7. La del `**`
+cambió de construcción `(...)*` a `[...]` al volverse recursiva, pero no
+desapareció ni se añadió ninguna.
 
 ---
 
@@ -227,20 +236,44 @@ bloque de errores léxicos.
 1. `javacc` debe reportar **0 errores y exactamente 7 advertencias** de *choice
    conflict* (`+`, `*`, `**`, `[`, `[`, `>`, `&&`). Una advertencia nueva significa
    que se alteró la gramática sin querer.
-2. La salida de errores de los 19 archivos de prueba debe ser **idéntica** en
-   cantidad, tipo, línea, columna, detalle y consejo — salvo que el punto que se está
-   corrigiendo la cambie a propósito.
+2. Los conteos de errores **léxicos y sintácticos** de los 26 archivos de prueba
+   deben quedar **idénticos**. Los semánticos y las advertencias solo pueden cambiar
+   cuando el punto que se está corrigiendo lo busque a propósito.
 
-Archivos de prueba y su salida esperada hoy:
+Archivos de prueba y su salida esperada **después de la fase semántica**:
 
-| Archivos | Errores |
-|---|---|
-| `Hello world.txt`, `codigo1.txt`, `codigo2.txt`, `codigo3.txt`, `scratch_test.txt`, `finalprueba.txt`, `codigo-prueba1..3.txt`, `codigoSimulación.txt` | 0 |
-| `errorcaracter.txt` | 1 (Léxico 3:24) |
-| `erroroplog.txt` | 1 (Léxico 5:7) |
-| `testcode.txt` | 1 (Sintáctico 2:28) |
-| `Negativos.txt` | 1 (Sintáctico 42:2) |
-| `erroridentificador.txt` | 2 (Léxico 3:7 y 4:12) |
-| `FORsencillo.txt` | 2 (Léxico 3:11 y 5:22) |
-| `sensor.txt` | 5 |
-| `errorescomunes.txt`, `codigopruebas.txt` | comparar contra la corrida anterior |
+| Archivo | Léx | Sin | Sem | Adv |
+|---|---|---|---|---|
+| `Hello world.txt` | 0 | 0 | 0 | 0 |
+| `codigo1.txt` | 0 | 0 | 0 | 1 |
+| `codigo2.txt` | 0 | 0 | 0 | 0 |
+| `codigo3.txt` | 0 | 0 | 2 | 3 |
+| `codigoSI.txt` | 0 | 0 | 2 | 0 |
+| `codigoSimulación.txt` | 0 | 0 | 1 | 0 |
+| `codigopruebas.txt` | 2 | 0 | 11 | 0 |
+| `codigo-prueba1.txt` | 14 | 4 | 0 | 7 |
+| `codigo-prueba2.txt` | 5 | 3 | 0 | 5 |
+| `codigo-prueba3.txt` | 0 | 4 | 0 | 0 |
+| `errorcaracter.txt` | 1 | 0 | 0 | 0 |
+| `errorescomunes.txt` | 7 | 0 | 0 | 0 |
+| `erroridentificador.txt` | 2 | 0 | 0 | 0 |
+| `erroroplog.txt` | 1 | 0 | 0 | 0 |
+| `finalprueba.txt` | 0 | 0 | 0 | 0 |
+| `FORsencillo.txt` | 2 | 0 | 0 | 0 |
+| `Negativos.txt` | 0 | 1 | 11 | 7 |
+| `scratch_test.txt` | 0 | 0 | 0 | 2 |
+| `sensor.txt` | 5 | 0 | 0 | 0 |
+| `testcode.txt` | 0 | 1 | 0 | 0 |
+| `semantico_ok.txt` | 0 | 0 | 0 | 0 |
+| `semantico_tipos.txt` | 0 | 0 | 20 | 11 |
+| `semantico_errores.txt` | 0 | 0 | 33 | 20 |
+| `traduccion.txt` | 0 | 0 | 0 | 0 |
+| `precedencia.txt` | 0 | 0 | 0 | 0 |
+| `cortocircuito.txt` | 0 | 0 | 0 | 0 |
+
+Los errores semánticos de `codigo3.txt`, `codigoSI.txt` y `codigoSimulación.txt`
+aparecieron con esta fase y son legítimos: esos programas usan variables no
+declaradas, un arreglo sin índice y un índice fuera de rango. No son regresiones.
+
+Las tres columnas de la izquierda son las que **no pueden cambiar**: si un archivo
+gana o pierde un error léxico o sintáctico, se rompió la recuperación de errores.

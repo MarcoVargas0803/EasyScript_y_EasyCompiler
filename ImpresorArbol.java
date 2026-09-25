@@ -71,7 +71,8 @@ public class ImpresorArbol {
 
         SimpleNode n = completo ? nodo : colapsar(nodo);
 
-        sb.append(prefijo).append(conector).append(n.toString()).append('\n');
+        sb.append(prefijo).append(conector).append(n.toString())
+          .append(anotacion(n)).append('\n');
 
         String prefijoHijos = prefijo;
         if (conector.length() > 0) {
@@ -89,6 +90,43 @@ public class ImpresorArbol {
                   .append(describirToken((Token) e)).append('\n');
             }
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Anotacion que se dibuja a la derecha del nombre del nodo.
+    //
+    // JJTree crea un nodo por produccion pero NO convierte los operadores en
+    // nodos: el '+' de una suma se consume como token suelto y desaparece de la
+    // lista de hijos. Por eso la gramatica los anota en el propio nodo (ver
+    // NodoEasy) y aqui se sacan a la luz: sin esto, un ExpresionNivel1 con una
+    // suma y otro con una resta se dibujan exactamente igual.
+    //
+    // Es lo que convierte el arbol sintactico en un arbol de EXPRESIONES.
+    // -----------------------------------------------------------------------
+    private static String anotacion(SimpleNode nodo) {
+        if (!(nodo instanceof NodoEasy)) return "";
+        NodoEasy n = (NodoEasy) nodo;
+
+        StringBuilder sb = new StringBuilder();
+
+        // Operadores registrados: "[+]" o "[* /]" si el nivel encadeno varios.
+        if (!n.sinOperadores()) {
+            sb.append("  [");
+            for (int i = 0; i < n.operadores.size(); i++) {
+                if (i > 0) sb.append(' ');
+                sb.append(n.operadores.get(i).image);
+            }
+            sb.append(']');
+        }
+
+        // Indices de un acceso a arreglo o matriz.
+        if (n.numIndices == 1) sb.append("  [indexado]");
+        if (n.numIndices == 2) sb.append("  [indexado x2]");
+
+        // Tipo inferido, en cuanto el analizador semantico lo haya calculado.
+        if (n.tipoInferido != null) sb.append("  {").append(n.tipoInferido).append('}');
+
+        return sb.toString();
     }
 
     // -----------------------------------------------------------------------

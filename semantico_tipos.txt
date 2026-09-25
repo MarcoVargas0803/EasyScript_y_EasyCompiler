@@ -1,0 +1,76 @@
+// semantico_tipos.txt
+// Cada bloque marcado con un codigo debe producir EXACTAMENTE ese error
+// semantico, y el analisis debe seguir hasta el final del archivo.
+
+INICIO{
+    ENT Entero = 5;
+    DEC Decimal = 2.5;
+    BOOL Bandera = VERDADERO;
+    LETRA Letra = 'a';
+    TXT Texto = "hola";
+    DEC CONST_Pi = 3.1416;
+    ARREGLO ENT Numeros[5];
+    MATRIZ ENT Tablero[2][2];
+
+    // SEM-04  DEC -> ENT perderia los decimales
+    ENT Truncado = 3.1416;
+
+    // SEM-03  tipos que no se mezclan
+    ENT Mal_bool = VERDADERO;
+
+    // SEM-29  asignacion incompatible
+    Entero = "texto";
+
+    // SEM-04  tambien al asignar, no solo al declarar
+    Entero = Decimal;
+
+    // SEM-12  una constante no se reasigna
+    CONST_Pi = 3.0;
+
+    // SEM-20  aritmetica sobre BOOL
+    ENT Malo = Bandera * 2;
+
+    // SEM-21  el modulo solo opera entre enteros
+    DEC Resto = Decimal % 2;
+
+    // SEM-22  division entre cero constante
+    ENT Cero = Entero / 0;
+
+    // SEM-23  comparar BOOL con ENT
+    BOOL Comparada = Bandera > Entero;
+
+    // SEM-24  el texto no se ordena
+    BOOL Ordenada = Texto > "otro";
+
+    // SEM-25  operador logico sobre algo que no es BOOL
+    BOOL Logica = Entero && Bandera;
+
+    // SEM-26  negar algo que no es BOOL
+    BOOL Negada = !!Entero;
+
+    // SEM-27  menos unario sobre texto
+    TXT Signo = -Texto;
+
+    // SEM-28  condicion que no es booleana
+    SI (Entero) {
+        IMPRIMIR("nunca");
+    }
+
+    // SEM-10  identificador no declarado
+    IMPRIMIR(No_declarada);
+
+    // SEM-18  indice que no es entero
+    Numeros[Decimal] = 1;
+
+    // SEM-15  arreglo usado sin indice
+    Entero = Numeros;
+
+    // SEM-16  variable simple usada con indice
+    Entero[0] = 1;
+
+    // SEM-17  matriz con un solo indice
+    Tablero[0] = 1;
+
+    // SEM-14  incrementar algo que no es numero
+    Texto++;
+}FIN

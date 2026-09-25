@@ -11,10 +11,15 @@
 #   .\build.ps1                      Compila
 #   .\build.ps1 -Ejecutar codigo1.txt          Compila y analiza ese archivo
 #   .\build.ps1 -Ejecutar codigo1.txt -Completo   Ademas muestra la derivacion sin colapsar
+#   .\build.ps1 -Ejecutar codigo1.txt -Codigo     Ademas muestra el codigo de tres direcciones
+#
+# El codigo intermedio se genera siempre, pero solo se imprime con -Codigo: la
+# salida normal se queda con el arbol, la tabla de simbolos y los errores.
 
 param(
     [string] $Ejecutar = "",
-    [switch] $Completo
+    [switch] $Completo,
+    [switch] $Codigo
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,11 +78,10 @@ Write-Host "Compilacion terminada." -ForegroundColor Green
 
 if ($Ejecutar -ne "") {
     Write-Host ""
-    if ($Completo) {
-        & $java "-Dfile.encoding=UTF-8" -cp out Main $Ejecutar --arbol-completo
-    } else {
-        & $java "-Dfile.encoding=UTF-8" -cp out Main $Ejecutar
-    }
+    $banderas = @()
+    if ($Completo) { $banderas += "--arbol-completo" }
+    if ($Codigo)   { $banderas += "--codigo-intermedio" }
+    & $java "-Dfile.encoding=UTF-8" -cp out Main $Ejecutar @banderas
 } else {
     Write-Host "Para analizar un archivo:" -ForegroundColor DarkGray
     Write-Host "  .\build.ps1 -Ejecutar codigo1.txt" -ForegroundColor DarkGray

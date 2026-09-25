@@ -6,10 +6,11 @@ options {
   /* ---------------------------------------------------------------
      Opciones de JJTree (construcción automática del árbol sintáctico)
      --------------------------------------------------------------- */
-  MULTI = false;             // Una sola clase de nodo (SimpleNode), diferenciada por su id.
+  MULTI = true;              // Una clase por nodo (ASTPrograma, ASTAsignacion, ...): visitor tipado.
   NODE_DEFAULT_VOID = false; // Crea un nodo por cada producción sin necesidad de anotarlas.
   TRACK_TOKENS = true;       // Cada nodo guarda su rango [primerToken .. ultimoToken].
-  VISITOR = false;           // Aún no se necesita; se activará en la fase semántica.
+  VISITOR = true;            // Genera EasyCompilerVisitor y jjtAccept(): la fase semantica es una pasada aparte.
+  NODE_CLASS = "NodoEasy";   // Superclase escrita a mano donde viven los campos de decoracion del AST.
 }
 
 //Inicia el parser.
@@ -327,9 +328,14 @@ SKIP: {
 void Sentencias() :
 {}
 {
-    // ACCIÓN SEMÁNTICA: cada par de llaves abre un ámbito nuevo en la tabla de
-    // símbolos. El cuerpo de INICIO{} es el ámbito 1; un SI anidado, el 2, etc.
-    { TablaSimbolos.abrirAmbito(); }
+    // Cada par de llaves es un ambito. Abrirlo y cerrarlo ya NO se hace aqui:
+    // lo hace AnalizadorSemantico.visit(ASTSentencias), que recorre el arbol en
+    // este mismo orden y por tanto reconstruye la misma anidacion.
+    //
+    // El motivo de haberlo movido: si los ambitos se abren y cierran durante el
+    // parseo, cuando el arbol esta completo la pila ya esta vacia y
+    // TablaSimbolos.buscar() no encuentra nada. Haciendolo en el visitor, la
+    // pila esta viva justo cuando hay que resolver los nombres.
     (
          DeclaracionVariable()
       |  DeclaracionArreglo()
@@ -349,7 +355,6 @@ void Sentencias() :
       | <PUNTO_COMA>
       //Sentencia Vacia: Solo un punto y coma, para permitir sentencias vacías sin romper el programa.
     )*
-    { TablaSimbolos.cerrarAmbito(); }
 }
 
 // Bloque anónimo para recuperación de errores
@@ -427,18 +432,25 @@ String TipoDato() :
 
 void Valor() :
 {
-  Token err;
+  Token t = null;
+  Token err = null;
 }
 {
-    <NUM_ENTERO>
-  | <NUM_DECIMAL>
-  | <CADENA>
-  | <VALOR_LETRA>
-
-  | <VERDADERO_BOOLEANO>
-  | <FALSO_BOOLEANO>
-  | <VARIABLE>
-  | <CONSTANTE>
+    (
+        t = <NUM_ENTERO>
+      | t = <NUM_DECIMAL>
+      | t = <CADENA>
+      | t = <VALOR_LETRA>
+      | t = <VERDADERO_BOOLEANO>
+      | t = <FALSO_BOOLEANO>
+      | t = <VARIABLE>
+      | t = <CONSTANTE>
+    )
+    // DECORACION DEL NODO (no es analisis semantico, es informacion lexica).
+    // El nodo se queda con el token que lo origino. El analizador semantico lo
+    // necesita para tres cosas: saber si es literal o identificador, deducir el
+    // tipo del literal, y poder reportar el error en la linea y columna exactas.
+    { jjtThis.tokenId = t; }
 
   
   // Atrapa errores Léxicos
@@ -491,54 +503,88 @@ void Valor() :
       }
 }
 
+// ==========================================
+// JERARQUIA DE EXPRESIONES
+//
+// Cada nivel es una produccion aparte para fijar la precedencia: Nivel1 suma y
+// resta, Nivel2 multiplica, Nivel3 eleva, Nivel4 aplica el menos unario.
+//
+// Las acciones { } de abajo NO comprueban nada. Solo anotan en el nodo el
+// operador que el parser acaba de leer, y hacen falta por una razon concreta:
+// JJTree crea un nodo por produccion pero NO convierte los operadores en nodos.
+// El '+' de una suma se consume como token suelto dentro del nodo padre y
+// desaparece de la lista de hijos. Sin esta anotacion no hay arbol de
+// expresiones de verdad (tema 1.1) ni con que comprobar tipos (tema 1.3).
+//
+// Quien decide sigue siendo AnalizadorSemantico, en su pasada aparte.
+// ==========================================
 void ExpresionAritmetica() :
 {}
 {
     ExpresionNivel1()
 }
 
-// Level 1: Handles addition and subtraction
+// Nivel 1: suma y resta
 void ExpresionNivel1() :
-{}
+{ Token op; }
 {
     ExpresionNivel2()
     (
-        ( <SUMA> | <RESTA> )
+        ( op = <SUMA> | op = <RESTA> )
+        { jjtThis.agregarOperador(op); }
         ExpresionNivel2()
     )*
 }
 
-// Level 2: Handles multiplication, division, and modulo
+// Nivel 2: multiplicacion, division y modulo
 void ExpresionNivel2() :
-{}
+{ Token op; }
 {
     ExpresionNivel3()
     (
-        ( <MULTIPLICACION> | <DIVISION> | <MODULO> )
+        ( op = <MULTIPLICACION> | op = <DIVISION> | op = <MODULO> )
+        { jjtThis.agregarOperador(op); }
         ExpresionNivel3()
     )*
 }
 
-// Level 3: Maneja exponentes
+// Nivel 3: menos unario.
+//
+// Va ENCIMA del exponente, no debajo. Es lo que hace que -2 ** 2 valga -(2**2)
+// y no (-2)**2: el signo se aplica al RESULTADO de la potencia, no a su base.
+// Es la convencion de las matematicas y la de casi todos los lenguajes, y es la
+// que espera cualquiera que copie una formula a mano.
+//
+// Antes este nivel estaba debajo del exponente y "-2 ** 2" daba 4.
 void ExpresionNivel3() :
-{}
+{ Token menos = null; }
 {
+    ( menos = <RESTA> )?
+    { jjtThis.unario = (menos != null); jjtThis.agregarOperador(menos); }
     ExpresionNivel4()
-    (
-        <EXPONENTE>
-        ExpresionNivel4()
-    )*
 }
 
-// Level 4: Maneja operadores unarios (números negativos) y valores/paréntesis
+// Nivel 4: exponente.
+//
+// Asocia a la DERECHA, y por eso se llama a si mismo en vez de usar un bucle:
+// 2**3**2 es 2**(3**2) = 512, no (2**3)**2 = 64. Un (...)* habria agrupado por
+// la izquierda, que es lo que hacia antes y daba el resultado equivocado.
+//
+// El operando derecho vuelve a Nivel3 y no a Nivel4 para que "2 ** -3" siga
+// siendo valido: el exponente puede llevar signo aunque la base ya no.
 void ExpresionNivel4() :
-{}
+{ Token op = null; }
 {
-    ( <RESTA> )? // Soporte para número negativo unario
     ValorConArreglos()
+    (
+        op = <EXPONENTE>
+        { jjtThis.agregarOperador(op); }
+        ExpresionNivel3()
+    )?
 }
 
-// Subnivel para manejar valores, llamadas a arreglos o expresiones entre paréntesis
+
+// Subnivel para manejar valores, llamadas a arreglos o expresiones entre parentesis
 void ValorConArreglos() :
 {}
 {
@@ -553,6 +599,9 @@ void ValorConArreglos() :
                     "Parece que olvidaste cerrar un paréntesis en tu operación."));
             }
         )
+        // DECORACION: distingue "(A+B)" de un acceso a arreglo. El analizador
+        // semantico lo usa para no confundir un parentesis con un indice.
+        { jjtThis.parentizada = true; }
       | 
         Valor()
         // Soporte opcional para acceder a índices de arreglos o matrices
@@ -567,6 +616,9 @@ void ValorConArreglos() :
                         "Parece que olvidaste cerrar el índice del arreglo con ']'."));
                 }
             )
+            // DECORACION: cuantos indices traia el acceso. 1 = arreglo, 2 = matriz.
+            // Es lo unico que permite despues distinguir "A[0]" de "A" a secas.
+            { jjtThis.numIndices = 1; }
             ( <ABRIR_CORCHETE> ExpresionAritmetica() 
               (
                   <CERRAR_CORCHETE>
@@ -577,6 +629,7 @@ void ValorConArreglos() :
                           "Parece que olvidaste cerrar el índice de la matriz con ']'."));
                   }
               ) 
+              { jjtThis.numIndices = 2; }
             )?
         )?
     )
@@ -630,17 +683,17 @@ void DeclaracionVariable() :
         )?
 
         {
-            // ACCIÓN SEMÁNTICA: agregarTipo(id.entrada, L.her)
-            // Es la regla de las producciones 4 y 5 de la Figura 5.8 (Aho, pág. 315).
-            // La posición de esta acción importa: al colocarla después de la
-            // inicialización opcional, ya se sabe si el identificador quedó
-            // inicializado y con qué valor (Aho, §5.4: "una acción en el cuerpo de
-            // una producción se ejecuta tan pronto como los símbolos gramaticales a
-            // la izquierda de la acción tengan coincidencias").
-            if (id.kind != ERROR_IDENTIFICADOR_INVALIDO) {
-                String categoria = (id.kind == CONSTANTE) ? "CONSTANTE" : "VARIABLE";
-                TablaSimbolos.agregarTipo(id, tipo, categoria, "-", inicializada, valor);
-            }
+            // DECORACION DEL NODO: se registra lo que el parser acaba de ver,
+            // sin interpretarlo. Esto NO es analisis semantico.
+            //
+            // Hasta ahora aqui vivia la accion que instalaba el simbolo en la
+            // tabla: la funcion "agregarTipo" que Aho deja supuesta en la
+            // Figura 5.8 (Compiladores, 2a ed., pag. 315). Se movio a
+            // AnalizadorSemantico.visit(ASTDeclaracionVariable), para que toda
+            // decision semantica ocurra en un mismo sitio y en una sola pasada
+            // sobre el arbol. La gramatica solo anota; quien decide es el
+            // analizador.
+            jjtThis.decorarDeclaracion(id, tipo, inicializada, valor, "-");
         }
 
         PuntoYComaVirtual()
@@ -701,10 +754,8 @@ void DeclaracionArreglo() :
         )?
 
         {
-            // ACCIÓN SEMÁNTICA: se instala el arreglo con su tipo base y su dimensión.
-            if (id.kind != ERROR_IDENTIFICADOR_INVALIDO) {
-                TablaSimbolos.agregarTipo(id, tipo, "ARREGLO", dim, inicializada, valor);
-            }
+            // DECORACION DEL NODO (ver DeclaracionVariable).
+            jjtThis.decorarDeclaracion(id, tipo, inicializada, valor, dim);
         }
 
         PuntoYComaVirtual()
@@ -768,10 +819,8 @@ void DeclaracionMatriz() :
         )?
 
         {
-            // ACCIÓN SEMÁNTICA: se instala la matriz con su tipo base y sus dos dimensiones.
-            if (id.kind != ERROR_IDENTIFICADOR_INVALIDO) {
-                TablaSimbolos.agregarTipo(id, tipo, "MATRIZ", dimFilas + dimColumnas, inicializada, valor);
-            }
+            // DECORACION DEL NODO (ver DeclaracionVariable).
+            jjtThis.decorarDeclaracion(id, tipo, inicializada, valor, dimFilas + dimColumnas);
         }
 
         PuntoYComaVirtual()
@@ -792,6 +841,8 @@ void DeclaracionMatriz() :
 void Asignacion() :
 {
   Token id;
+  Token op = null;      // el operador: "=", "++" o "--"
+  int indices = 0;      // 0 escalar, 1 arreglo, 2 matriz
 }
 {
     try {
@@ -807,15 +858,21 @@ void Asignacion() :
         //Soporte opcional para acceder a índices de arreglos o matrices
         (
                     <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE>
-                    ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> )? // El segundo es opcional (para matrices)
+                    { indices = 1; }
+                    ( <ABRIR_CORCHETE> ExpresionAritmetica() <CERRAR_CORCHETE> { indices = 2; } )? // El segundo es opcional (para matrices)
                 )?
 
         // Puede ser una asignación (= 5) o un incremento/decremento (++)
         (
-            ( <IGUAL_ASIGNACION> Condicion() )
-          | <INCREMENTO_AL_VALOR>
-          | <DECREMENTO_AL_VALOR>
+            ( op = <IGUAL_ASIGNACION> Condicion() )
+          | op = <INCREMENTO_AL_VALOR>
+          | op = <DECREMENTO_AL_VALOR>
         )
+
+        // DECORACION DEL NODO: destino, operador y cuantos indices traia el
+        // acceso. Con esto el analizador semantico distingue "X = e", "X++" y
+        // "A[i] = e" sin tener que releer los tokens del nodo.
+        { jjtThis.decorarAsignacion(id, op, indices); }
         PuntoYComaVirtual()
 
     } catch (ParseException e) {
@@ -836,9 +893,9 @@ void Asignacion() :
 
 // Regla para lo que va dentro del IMPRIMIR y LEER ("texto" + variable)
 void ExpresionConcatenada() :
-{}
+{ Token op; }
 {
-    ExpresionAritmetica() ( <SUMA> ExpresionAritmetica() )*
+    ExpresionAritmetica() ( op = <SUMA> { jjtThis.agregarOperador(op); } ExpresionAritmetica() )*
 }
 
 // ==========================================
@@ -877,9 +934,12 @@ void Leer() :
 
 // Operadores Relacionales
 void OperadorRelacional() :
-{}
+{ Token t; }
 {
-    <MAYOR> | <MENOR> | <IGUAL_COMPARACION> | <DIFERENTE> | <MAYOR_IGUAL> | <MENOR_IGUAL>
+    ( t = <MAYOR> | t = <MENOR> | t = <IGUAL_COMPARACION> | t = <DIFERENTE> | t = <MAYOR_IGUAL> | t = <MENOR_IGUAL> )
+    // DECORACION: el nodo se queda con su propio operador, asi CondicionSimple
+    // lo encuentra mirando a este hijo en vez de rebuscar entre los tokens.
+    { jjtThis.tokenId = t; }
 }
 
 // Una condición simple: Variable > 5
@@ -887,11 +947,11 @@ void OperadorRelacional() :
 // CONDICIÓN SIMPLE (Ej. Numero > 5, VERDADERO, o !!EsEstudiante)
 // ==========================================
 void CondicionSimple() :
-{ Token err = null; }
+{ Token neg = null; Token err = null; }
 {
     // 1. Opcional: Puede iniciar con la negación lógica (!!) o el error (!)
     (
-        <NO_LOGICO>
+        neg = <NO_LOGICO>
           | err = <ERROR_NEGACION_INCOMPLETA>
              {
                    EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
@@ -899,6 +959,9 @@ void CondicionSimple() :
                       "Para negar una condición en EasyScript debes usar '!!'."));
         }
     )?
+    // DECORACION: hubo negacion logica. El '!' incompleto cuenta igual: el error
+    // lexico ya se reporto, pero el arbol debe reflejar lo que se quiso escribir.
+    { jjtThis.negado = (neg != null || err != null); }
 
     // 2. La expresión principal a evaluar
     ExpresionAritmetica()
@@ -911,7 +974,7 @@ void CondicionSimple() :
 // CONDICIÓN COMPUESTA (Une múltiples CondicionSimple con && o ||)
 // ==========================================
 void Condicion() :
-{ Token err = null; }
+{ Token op = null; }
 {
     // Siempre debe haber al menos una condición simple
     CondicionSimple()
@@ -920,16 +983,22 @@ void Condicion() :
     (
         // Leemos el operador (&&, ||) o el error de escribir solo (&, |)
         (
-            <Y_LOGICO>
-          | <O_LOGICO>
-          | err = <ERROR_LOGICO_INCOMPLETO>
+            op = <Y_LOGICO>
+          | op = <O_LOGICO>
+          | op = <ERROR_LOGICO_INCOMPLETO>
             {
                 // Atrapamos el '&' o '|' solitario en tiempo real
-                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", err.beginLine, err.beginColumn,
-                    "Operador lógico incompleto: '" + err.image + "'",
+                EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", op.beginLine, op.beginColumn,
+                    "Operador lógico incompleto: '" + op.image + "'",
                     "Asegúrate de usar operadores dobles: && para 'Y', || para 'O'."));
             }
         )
+        // DECORACION: el operador logico de ESTA vuelta del bucle.
+        //
+        // Las tres alternativas escriben sobre la MISMA variable a proposito. Si
+        // el error tuviera su propia variable, en la segunda vuelta seguiriamos
+        // viendo el operador de la primera y anotariamos el equivocado.
+        { jjtThis.agregarOperador(op); }
         // Y exigimos que después del operador venga otra condición
         CondicionSimple()
     )*
@@ -980,10 +1049,14 @@ void CondicionalSi() :
 // CONDICIONAL SEGUN (Switch)
 // ==========================================
 void CondicionalSegun() :
-{}
+{ Token ctrl = null; }
 {
     try{
-    <SEGUN_CONDICIONAL> <ABRIR_PARENTESIS> <VARIABLE> <CERRAR_PARENTESIS> <ABRIR_LLAVE>
+    <SEGUN_CONDICIONAL> <ABRIR_PARENTESIS> ctrl = <VARIABLE> <CERRAR_PARENTESIS>
+    // DECORACION: la variable de control del SEGUN. Hoy no se capturaba, y sin
+    // ella no hay forma de comprobar que cada CASO sea de un tipo comparable.
+    { jjtThis.tokenId = ctrl; }
+    <ABRIR_LLAVE>
 
             // Debe haber al menos un CASO (+)
             (
@@ -1018,7 +1091,7 @@ void CondicionalSegun() :
 // BUCLE PARA
 // ==========================================
 void BuclePara() :
-{}
+{ Token varPaso = null; Token opPaso = null; }
 {
   try{
     <PARA_CICLO> <ABRIR_PARENTESIS>
@@ -1029,7 +1102,11 @@ void BuclePara() :
           Condicion() <PUNTO_COMA>
 
           // 3. Incremento/Decremento (Asumiendo tokens como INCREMENTO para "++")
-          <VARIABLE> ( <INCREMENTO_AL_VALOR> | <DECREMENTO_AL_VALOR> )
+          varPaso = <VARIABLE> ( opPaso = <INCREMENTO_AL_VALOR> | opPaso = <DECREMENTO_AL_VALOR> )
+          // DECORACION: el paso del ciclo. Se guarda porque el esquema de
+          // traduccion lo necesita al final: sintacticamente va en la cabecera,
+          // pero el cuadruplo que lo aplica se emite DESPUES del cuerpo.
+          { jjtThis.tokenId = varPaso; jjtThis.agregarOperador(opPaso); }
 
     <CERRAR_PARENTESIS> <ABRIR_LLAVE>
           Sentencias()

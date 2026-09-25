@@ -1,0 +1,29 @@
+// precedencia.txt
+//
+// Comprueba la precedencia y la asociatividad del exponente y del menos unario.
+// Es un programa correcto: no debe producir errores.
+//
+// Lo que se verifica no se ve en la consola sino en el codigo generado:
+//
+//     .\build.ps1 -Ejecutar precedencia.txt -Codigo
+//
+// Resultado esperado, instruccion por instruccion:
+//
+//   2 ** 3 ** 2   ->   t = 3 ** 2      el exponente asocia a la DERECHA,
+//                      t' = 2 ** t     asi que vale 512 y no 64
+//
+//   -2 ** 2       ->   t = 2 ** 2      el signo se aplica al RESULTADO,
+//                      t' = -t         asi que vale -4 y no 4
+//
+//   2 ** -3       ->   t = -3          el exponente si puede llevar signo
+//                      t' = 2 ** t
+
+INICIO{
+    ENT Potencia_anidada = 2 ** 3 ** 2;
+    ENT Base_negativa = -2 ** 2;
+    DEC Exponente_negativo = 2 ** -3;
+    ENT Negado = -Potencia_anidada;
+
+    IMPRIMIR("resultados: " + Potencia_anidada + Base_negativa
+             + Exponente_negativo + Negado);
+}FIN

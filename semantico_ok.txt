@@ -1,0 +1,64 @@
+// semantico_ok.txt
+// Programa correcto: el analizador semantico NO debe reportar ni un solo error.
+// Es la contraparte de semantico_tipos.txt y sirve para detectar falsos
+// positivos, que son peores que un error no detectado.
+
+INICIO{
+    ENT Entero = 5;
+    DEC Decimal = 2.5;
+    BOOL Bandera = VERDADERO;
+    LETRA Letra = 'a';
+    TXT Texto = "hola";
+
+    // ENT -> DEC es ampliacion implicita y esta permitida
+    DEC Ampliado = 5;
+
+    // Aritmetica entre numeros
+    ENT Suma = Entero + 3;
+    DEC Mezcla = Entero + Decimal;
+    ENT Division = Entero / 2;
+    ENT Residuo = Entero % 2;
+    ENT Potencia = Entero ** 2;
+    ENT Negativo = -Entero;
+
+    // La suma con un operando TXT concatena
+    TXT Mensaje = "Total: " + Entero;
+
+    // Relacionales y logicos
+    BOOL Comparacion = Entero > 3;
+    BOOL Compuesta = Entero > 3 && Decimal < 9.0;
+    BOOL Negada = !!Bandera;
+    BOOL Iguales = Letra == 'a';
+    BOOL Textos = Texto == "hola";
+
+    // Estructuras de control con condicion booleana
+    SI (Entero > 0) {
+        IMPRIMIR("positivo");
+    } SINO {
+        IMPRIMIR("no positivo");
+    }
+
+    MIENTRAS (Entero < 10) {
+        Entero = Entero + 1;
+    }
+
+    // Dos PARA hermanos con el mismo contador: cada uno tiene su propio ambito
+    PARA (ENT I = 0; I < 3; I++) {
+        IMPRIMIR(I);
+    }
+    PARA (ENT I = 0; I < 5; I++) {
+        IMPRIMIR(I);
+    }
+
+    // Arreglos y matrices con indice entero
+    ARREGLO ENT Numeros[5];
+    MATRIZ DEC Tablero[2][2];
+    Numeros[0] = 7;
+    Tablero[1][1] = 3.5;
+    ENT Primero = Numeros[0];
+    DEC Casilla = Tablero[0][0];
+
+    IMPRIMIR(Mensaje + Suma + Mezcla + Division + Residuo + Potencia + Negativo);
+    IMPRIMIR("Logicos: " + Comparacion + Compuesta + Negada + Iguales + Textos);
+    IMPRIMIR("Otros: " + Ampliado + Primero + Casilla + Bandera + Letra + Texto);
+}FIN

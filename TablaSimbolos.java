@@ -23,7 +23,9 @@
 // modifica una estructura global. Como cada identificador ocupa su propia
 // entrada, el orden de las inserciones no altera el resultado.
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TablaSimbolos {
 
@@ -42,17 +44,113 @@ public class TablaSimbolos {
     // Numerador de bloques: cada bloque que se abre recibe un id nuevo.
     private static int contadorBloques = 0;
 
+    // Bloque -> bloque que lo encierra. La pila de arriba solo sabe que hay
+    // abierto AHORA; este mapa conserva la forma del arbol de ambitos cuando la
+    // pila ya se vacio, que es lo que hace falta para imprimir la tabla y para
+    // cualquier consulta posterior al recorrido.
+    private static Map<Integer, Integer> padreDeBloque = new HashMap<Integer, Integer>();
+
+    // Disposicion del almacenamiento (Aho, seccion 6.3.4, Fig. 6.17).
+    //
+    // Paralelas a pilaAmbitos: para el bloque abierto, donde empieza en memoria
+    // y cuanto lleva ocupado. Un bloque interior arranca donde termina lo que su
+    // padre lleva reservado; dos bloques HERMANOS arrancan en el mismo sitio,
+    // porque no estan vivos a la vez y pueden reutilizar el espacio.
+    private static List<Integer> pilaBases = new ArrayList<Integer>();
+    private static List<Integer> pilaDesplazamientos = new ArrayList<Integer>();
+
     // ------------------------------------------------------------------
     // Manejo de ambitos
     // ------------------------------------------------------------------
     public static void abrirAmbito() {
+        int padre = bloqueActual();          // 0 cuando no hay ninguno abierto
+        int base = pilaAmbitos.isEmpty() ? 0 : baseActual() + desplazamientoActual();
         contadorBloques++;
+        padreDeBloque.put(Integer.valueOf(contadorBloques), Integer.valueOf(padre));
         pilaAmbitos.add(Integer.valueOf(contadorBloques));
+        pilaBases.add(Integer.valueOf(base));
+        pilaDesplazamientos.add(Integer.valueOf(0));
+    }
+
+    /** Byte donde empieza el bloque abierto. */
+    public static int baseActual() {
+        if (pilaBases.isEmpty()) return 0;
+        return pilaBases.get(pilaBases.size() - 1).intValue();
+    }
+
+    /** Bytes ya reservados dentro del bloque abierto. */
+    public static int desplazamientoActual() {
+        if (pilaDesplazamientos.isEmpty()) return 0;
+        return pilaDesplazamientos.get(pilaDesplazamientos.size() - 1).intValue();
+    }
+
+    /**
+     * Reserva espacio para un simbolo y le asigna su direccion.
+     *
+     * Va aparte de agregarTipo porque el tamano de un arreglo o una matriz se
+     * conoce despues: hay que evaluar la expresion de los corchetes, y eso lo
+     * hace el analizador semantico. Quien llama debe haber dejado ya 'filas' y
+     * 'columnas' puestas.
+     */
+    public static void asignarDireccion(Simbolo s) {
+        if (s == null || "INDEFINIDO".equals(s.categoria)) {
+            return;   // un hueco de error no ocupa memoria
+        }
+        s.anchoElemento = Tipo.desdeLexema(s.tipo).ancho;
+
+        int elementos = 1;
+        if ("ARREGLO".equals(s.categoria)) {
+            elementos = s.filas;
+        } else if ("MATRIZ".equals(s.categoria)) {
+            elementos = s.filas * s.columnas;
+        }
+        // Si el tamano no se pudo determinar (ya se reporto como error) se
+        // reserva un elemento, para que la tabla siga siendo legible.
+        if (elementos <= 0) {
+            elementos = 1;
+        }
+
+        s.ancho = s.anchoElemento * elementos;
+        s.desplazamiento = desplazamientoActual();
+        s.direccion = baseActual() + s.desplazamiento;
+
+        if (!pilaDesplazamientos.isEmpty()) {
+            pilaDesplazamientos.set(pilaDesplazamientos.size() - 1,
+                Integer.valueOf(s.desplazamiento + s.ancho));
+        }
+    }
+
+    /**
+     * Tamano del marco de activacion: el byte mas alto que alguna declaracion
+     * llego a ocupar. Es cuanta memoria necesita el programa para sus datos.
+     */
+    public static int tamanoDelMarco() {
+        int max = 0;
+        for (int i = 0; i < tabla.size(); i++) {
+            Simbolo s = tabla.get(i);
+            int fin = s.direccion + s.ancho;
+            if (fin > max) max = fin;
+        }
+        return max;
+    }
+
+    /** Bloque que encierra al indicado; 0 si es el mas externo. */
+    public static int padreDe(int bloque) {
+        Integer p = padreDeBloque.get(Integer.valueOf(bloque));
+        return (p == null) ? 0 : p.intValue();
     }
 
     public static void cerrarAmbito() {
         if (!pilaAmbitos.isEmpty()) {
             pilaAmbitos.remove(pilaAmbitos.size() - 1);
+        }
+        // El padre NO hereda lo que gasto el hijo: al cerrarse el bloque ese
+        // espacio queda libre para el siguiente bloque hermano.
+        if (!pilaBases.isEmpty()) {
+            pilaBases.remove(pilaBases.size() - 1);
+        }
+        if (!pilaDesplazamientos.isEmpty()) {
+            pilaDesplazamientos.remove(pilaDesplazamientos.size() - 1);
         }
     }
 
@@ -88,8 +186,20 @@ public class TablaSimbolos {
         // Solo cuenta como duplicado si el nombre ya existe en ESTE mismo bloque;
         // repetirlo en un bloque interior es ocultamiento (shadowing), no error.
         Simbolo previo = buscarEnBloque(nombre, bloqueActual());
+
+        // Un INDEFINIDO no es una declaracion: es el hueco que dejo un nombre
+        // usado antes de declararse, puesto ahi para no repetir el mismo error
+        // en cada uso. Si mas adelante aparece la declaracion de verdad, ocupa
+        // su lugar; tratarlo como duplicado seria denunciar un error que el
+        // propio compilador invento.
+        if (previo != null && "INDEFINIDO".equals(previo.categoria)
+                && !"INDEFINIDO".equals(categoria)) {
+            tabla.remove(previo);
+            previo = null;
+        }
+
         if (previo != null) {
-            EasyCompiler.listaErrores.add(new ErrorCompilador("Semántico", id.beginLine, id.beginColumn,
+            EasyCompiler.listaErrores.add(new ErrorCompilador("Semántico", "SEM-01", id.beginLine, id.beginColumn,
                 "El identificador '" + nombre + "' ya fue declarado en este ámbito (línea "
                     + previo.linea + ", columna " + previo.columna + ").",
                 "Cada nombre puede declararse una sola vez por bloque. Renombra la segunda declaración o elimínala."));
@@ -99,6 +209,7 @@ public class TablaSimbolos {
         Simbolo s = new Simbolo(nombre, tipo, categoria, dimensiones,
                                 nivelActual(), bloqueActual(),
                                 inicializada, valor, id.beginLine, id.beginColumn);
+        s.bloquePadre = padreDe(bloqueActual());
         tabla.add(s);
         return s;
     }
@@ -139,11 +250,70 @@ public class TablaSimbolos {
     // ------------------------------------------------------------------
     // Acceso para la impresion final
     // ------------------------------------------------------------------
+    /**
+     * Simbolos declarados por el programa.
+     *
+     * Deja fuera los INDEFINIDO: no son declaraciones del programador sino
+     * marcadores internos para no repetir el mismo error. Sacarlos en la tabla
+     * haria parecer que el programa declaro algo de tipo ERROR.
+     */
     public static List<Simbolo> obtenerTodos() {
-        return tabla;
+        List<Simbolo> res = new ArrayList<Simbolo>();
+        for (int i = 0; i < tabla.size(); i++) {
+            if (!"INDEFINIDO".equals(tabla.get(i).categoria)) {
+                res.add(tabla.get(i));
+            }
+        }
+        return res;
     }
 
     public static boolean estaVacia() {
-        return tabla.isEmpty();
+        return obtenerTodos().isEmpty();
+    }
+
+    // ------------------------------------------------------------------
+    // Reinicio
+    //
+    // Toda esta clase es estatica, asi que su estado sobrevive al analisis de
+    // un archivo. Mientras el compilador se ejecute una vez por proceso da
+    // igual, pero en cuanto se analicen dos archivos seguidos (o se le ponga
+    // una interfaz grafica) la tabla saldria con los simbolos del anterior y
+    // la numeracion de bloques continuaria donde se quedo. Es el punto 9 de
+    // plan_correcciones.md, y la fase semantica ya lo necesita.
+    // ------------------------------------------------------------------
+    public static void reiniciar() {
+        tabla.clear();
+        pilaAmbitos.clear();
+        pilaBases.clear();
+        pilaDesplazamientos.clear();
+        padreDeBloque.clear();
+        contadorBloques = 0;
+    }
+
+    // ------------------------------------------------------------------
+    // Consultas que necesita el analizador semantico
+    // ------------------------------------------------------------------
+
+    /**
+     * Marca como usado el simbolo visible con ese nombre. Sirve para avisar
+     * al final de "declaraste esto y nunca lo usaste", que casi siempre es una
+     * variable mal escrita en el punto de uso.
+     */
+    public static void marcarUsado(String nombre) {
+        Simbolo s = buscar(nombre);
+        if (s != null) {
+            s.usado = true;
+        }
+    }
+
+    /** Simbolos declarados directamente en ese bloque, en orden de aparicion. */
+    public static List<Simbolo> simbolosDe(int bloque) {
+        List<Simbolo> res = new ArrayList<Simbolo>();
+        for (int i = 0; i < tabla.size(); i++) {
+            if (tabla.get(i).bloque == bloque) {
+                res.add(tabla.get(i));
+            }
+        }
+        return res;
     }
 }
