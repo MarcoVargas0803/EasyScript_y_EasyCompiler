@@ -19,10 +19,16 @@
 //
 // Un detalle sobre los temporales
 // -------------------------------
-// De momento NO se instalan en la tabla de simbolos. Aparecerian en la tabla
-// impresa y cambiarian el tamano del marco de datos, y la consola tiene que
-// quedarse como esta. Cuando se decida mostrar el codigo intermedio, darles
-// direccion es anadir una llamada a TablaSimbolos.asignarDireccion().
+// NO se instalan en la tabla de simbolos: aparecerian en la tabla impresa y
+// cambiarian el tamano del marco de datos, y la consola tiene que quedarse
+// como esta. Pero la fase siguiente necesita saber donde vive cada uno, asi
+// que al terminar la traduccion reciben una direccion propia, a continuacion
+// de los datos del programa (ver asignarDireccionesTemporales).
+//
+// Tampoco se reutilizan: cada valor intermedio tiene su nombre y su sitio.
+// Aho lo recomienda asi para el codigo intermedio (seccion 6.2.1): combinar
+// temporales es trabajo de la asignacion de registros (seccion 8.8), que
+// pertenece a la generacion de codigo objeto.
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,8 +48,11 @@ public class GeneradorCodigo {
     private static int contadorTemporales = 0;
     private static int contadorEtiquetas = 0;
 
-    /** Tipo de cada temporal creado, por si hace falta consultarlo. */
+    /** Tipo de cada temporal creado: el de t1 en la posicion 0, y asi. */
     private static final List<String> tiposDeTemporales = new ArrayList<String>();
+
+    /** Direccion de cada temporal, en el mismo orden. Vacia hasta asignarlas. */
+    private static final List<Integer> direccionesDeTemporales = new ArrayList<Integer>();
 
     // ------------------------------------------------------------------
     // Nombres nuevos
@@ -383,9 +392,60 @@ public class GeneradorCodigo {
         return rotas;
     }
 
+    // ------------------------------------------------------------------
+    // Direcciones de los temporales (Aho, secciones 6.3.4 y 7.2)
+    // ------------------------------------------------------------------
+
+    /**
+     * Da direccion a todos los temporales, uno detras de otro a partir de
+     * 'base', con el ancho de su tipo: es la misma regla que sigue la tabla de
+     * simbolos con las variables (direccion = base + lo ya ocupado).
+     *
+     * Se llama con base = TablaSimbolos.tamanoDelMarco(), asi los temporales
+     * quedan en el registro de activacion justo despues de los datos locales,
+     * que es donde Aho los coloca (figura 7.5). Devuelve el primer byte libre
+     * despues del ultimo temporal.
+     *
+     * Un temporal de tipo ERROR (solo existen cuando el programa tiene
+     * errores) tiene ancho 0 y no ocupa memoria, igual que en la tabla de
+     * simbolos.
+     */
+    public static int asignarDireccionesTemporales(int base) {
+        direccionesDeTemporales.clear();
+        int siguiente = base;
+        for (int i = 0; i < tiposDeTemporales.size(); i++) {
+            direccionesDeTemporales.add(Integer.valueOf(siguiente));
+            siguiente += anchoDeTemporal(i);
+        }
+        return siguiente;
+    }
+
+    public static int cantidadDeTemporales() {
+        return tiposDeTemporales.size();
+    }
+
+    /** Nombre del temporal i (0 es t1). */
+    public static String nombreDeTemporal(int i) {
+        return "t" + (i + 1);
+    }
+
+    public static String tipoDeTemporal(int i) {
+        return tiposDeTemporales.get(i);
+    }
+
+    public static int anchoDeTemporal(int i) {
+        return Tipo.desdeLexema(tiposDeTemporales.get(i)).ancho;
+    }
+
+    /** Direccion del temporal i, o -1 si todavia no se asignaron. */
+    public static int direccionDeTemporal(int i) {
+        return (i < direccionesDeTemporales.size()) ? direccionesDeTemporales.get(i).intValue() : -1;
+    }
+
     public static void reiniciar() {
         codigo.clear();
         tiposDeTemporales.clear();
+        direccionesDeTemporales.clear();
         contadorTemporales = 0;
         contadorEtiquetas = 0;
     }

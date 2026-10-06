@@ -131,10 +131,12 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      *             que analizar (el parseo no llego ni a construir la raiz).
      */
     public void analizar(SimpleNode raiz) {
-        if (raiz == null) {
-            return;
+        if (raiz != null) {
+            raiz.jjtAccept(this, null);
         }
-        raiz.jjtAccept(this, null);
+        // TRADUCCION, ultimo paso: con todas las declaraciones vistas ya se
+        // conoce el tamano de los datos, y los temporales van a continuacion.
+        GeneradorCodigo.asignarDireccionesTemporales(TablaSimbolos.tamanoDelMarco());
     }
 
     // =====================================================================

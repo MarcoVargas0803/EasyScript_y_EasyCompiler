@@ -56,8 +56,8 @@ public class Main {
                 System.out.println("Error critico de sintaxis no recuperable: " + e.getMessage());
             } catch (TokenMgrError e) {
                 EasyCompiler.listaErrores.add(new ErrorCompilador("Léxico", -1, -1,
-                    "Error fatal del escáner: " + e.getMessage(),
-                    "El archivo contiene caracteres inválidos o estructuras léxicas irreparables."));
+                        "Error fatal del escáner: " + e.getMessage(),
+                        "El archivo contiene caracteres inválidos o estructuras léxicas irreparables."));
                 System.out.println(">> Analisis interrumpido por error léxico fatal.");
             }
 
@@ -96,7 +96,8 @@ public class Main {
             String color = (totalErrores > 0) ? ANSI_RED : ANSI_YELLOW;
 
             if (EasyCompiler.listaErrores.isEmpty()) {
-                System.out.println(ANSI_GREEN + ">> ¡Excelente! No se encontraron errores en el código fuente." + ANSI_RESET);
+                System.out.println(
+                        ANSI_GREEN + ">> ¡Excelente! No se encontraron errores en el código fuente." + ANSI_RESET);
             } else {
 
                 String resumen;
@@ -123,7 +124,8 @@ public class Main {
                     if (error.codigo != null && !"-".equals(error.codigo)) {
                         etiquetaTipo = error.tipo + " " + error.codigo;
                     }
-                    System.out.printf( ANSI_BLUE +"\n[ Error %d ] --- Tipo: %s | Línea: %d | Columna: %d \n" + ANSI_RESET,
+                    System.out.printf(
+                            ANSI_BLUE + "\n[ Error %d ] --- Tipo: %s | Línea: %d | Columna: %d \n" + ANSI_RESET,
                             (i + 1), etiquetaTipo, error.linea, error.columna);
 
                     // Fila 2 y 3: Detalle y Consejo
@@ -131,31 +133,34 @@ public class Main {
                     System.out.println("  💡 Consejo : " + error.consejo + ANSI_RESET);
                 }
 
-                System.out.println(color + "\n============================================================" + ANSI_RESET);
-
-
-
-
+                System.out
+                        .println(color + "\n============================================================" + ANSI_RESET);
 
                 /*
-                // Dibujamos la cabecera de la tabla
-                System.out.println("Total de errores detectados: " + EasyCompiler.listaErrores.size());
-                System.out.println(
-                        "==================================================== TABLA DE ERRORES ==================================================================================");
-                System.out.printf("| %-15s | %-7s | %-9s | %-45s | %-60s |\n", "TIPO", "LINEA", "COLUMNA",
-                        "DETALLE DEL ERROR", "CONSEJO");
-                System.out.println(
-                        "--------------------------------------------------------------------------------------------------------------------------------------------------------");
-
-                // Recorremos la lista e imprimimos cada error con formato
-                for (ErrorCompilador error : EasyCompiler.listaErrores) {
-                    System.out.printf("| %-15s | %-7d | %-9d | %-45s | %-60s |\n", error.tipo, error.linea,
-                            error.columna, error.detalle, error.consejo);
-                }
-
-                System.out.println(
-                        "========================================================================================================================================================");
-            */
+                 * // Dibujamos la cabecera de la tabla
+                 * System.out.println("Total de errores detectados: " +
+                 * EasyCompiler.listaErrores.size());
+                 * System.out.println(
+                 * "==================================================== TABLA DE ERRORES =================================================================================="
+                 * );
+                 * System.out.printf("| %-15s | %-7s | %-9s | %-45s | %-60s |\n", "TIPO",
+                 * "LINEA", "COLUMNA",
+                 * "DETALLE DEL ERROR", "CONSEJO");
+                 * System.out.println(
+                 * "--------------------------------------------------------------------------------------------------------------------------------------------------------"
+                 * );
+                 * 
+                 * // Recorremos la lista e imprimimos cada error con formato
+                 * for (ErrorCompilador error : EasyCompiler.listaErrores) {
+                 * System.out.printf("| %-15s | %-7d | %-9d | %-45s | %-60s |\n", error.tipo,
+                 * error.linea,
+                 * error.columna, error.detalle, error.consejo);
+                 * }
+                 * 
+                 * System.out.println(
+                 * "========================================================================================================================================================"
+                 * );
+                 */
             }
         } catch (FileNotFoundException e) {
             System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
@@ -205,8 +210,44 @@ public class Main {
         java.util.List<String> rotas = GeneradorCodigo.etiquetasRotas();
         if (!rotas.isEmpty()) {
             System.out.println(ANSI_RED + "  ERROR INTERNO: hay saltos a etiquetas que no existen: "
-                + rotas + ANSI_RESET);
+                    + rotas + ANSI_RESET);
         }
+
+        imprimirTemporales();
+    }
+
+    /**
+     * Imprime donde vive cada temporal: la otra mitad de lo que necesita la
+     * fase siguiente. Las variables tienen su direccion en la tabla de
+     * simbolos; los temporales, que no estan ahi, la tienen aqui.
+     */
+    private static void imprimirTemporales() {
+        int n = GeneradorCodigo.cantidadDeTemporales();
+        if (n == 0) {
+            return;
+        }
+        int datos = TablaSimbolos.tamanoDelMarco();
+        int bytes = 0;
+        for (int i = 0; i < n; i++) {
+            bytes += GeneradorCodigo.anchoDeTemporal(i);
+        }
+
+        System.out.println(ANSI_BLUE + "\n TEMPORALES - DIRECCIONES" + ANSI_RESET);
+        String borde = "+----------+-------+-------+-------+";
+        System.out.println(borde);
+        System.out.printf("| %-8s | %-5s | %-5s | %-5s |%n", "TEMPORAL", "TIPO", "ANCHO", "DIR");
+        System.out.println(borde);
+        for (int i = 0; i < n; i++) {
+            System.out.printf("| %-8s | %-5s | %-5d | %-5d |%n",
+                    GeneradorCodigo.nombreDeTemporal(i),
+                    GeneradorCodigo.tipoDeTemporal(i),
+                    GeneradorCodigo.anchoDeTemporal(i),
+                    GeneradorCodigo.direccionDeTemporal(i));
+        }
+        System.out.println(borde);
+        System.out.println(ANSI_BLUE + "  Datos: " + datos + " bytes" + rango(0, datos)
+                + "   |   Temporales: " + n + ", " + bytes + " bytes" + rango(datos, bytes)
+                + "   |   Total: " + (datos + bytes) + " bytes");
     }
 
     /**
@@ -223,12 +264,13 @@ public class Main {
      */
     private static void ordenarErrores() {
         java.util.Collections.sort(EasyCompiler.listaErrores,
-            new java.util.Comparator<ErrorCompilador>() {
-                public int compare(ErrorCompilador a, ErrorCompilador b) {
-                    if (a.linea != b.linea) return a.linea - b.linea;
-                    return a.columna - b.columna;
-                }
-            });
+                new java.util.Comparator<ErrorCompilador>() {
+                    public int compare(ErrorCompilador a, ErrorCompilador b) {
+                        if (a.linea != b.linea)
+                            return a.linea - b.linea;
+                        return a.columna - b.columna;
+                    }
+                });
     }
 
     /**
@@ -245,8 +287,8 @@ public class Main {
 
         if (TablaSimbolos.estaVacia()) {
             System.out.println(ANSI_YELLOW
-                + "  (vacia) No se declaro ningun identificador en este programa."
-                + ANSI_RESET);
+                    + "  (vacia) No se declaro ningun identificador en este programa."
+                    + ANSI_RESET);
             return;
         }
 
@@ -257,7 +299,8 @@ public class Main {
         String linea = "+------+----------------------+-------+-----------+------------+-------+--------+------+--------------------+-------+---------+-------+-------+-------+";
 
         System.out.println(linea);
-        System.out.printf("| %-4s | %-20s | %-5s | %-9s | %-10s | %-5s | %-6s | %-4s | %-18s | %-5s | %-7s | %-5s | %-5s | %-5s |%n",
+        System.out.printf(
+                "| %-4s | %-20s | %-5s | %-9s | %-10s | %-5s | %-6s | %-4s | %-18s | %-5s | %-7s | %-5s | %-5s | %-5s |%n",
                 "#", "NOMBRE", "TIPO", "CATEGORIA", "DIMENSION", "NIVEL", "BLOQUE", "INIC", "VALOR", "LINEA", "COLUMNA",
                 "ANCHO", "DESPL", "DIR");
         System.out.println(linea);
@@ -265,7 +308,8 @@ public class Main {
         java.util.List<Simbolo> simbolos = TablaSimbolos.obtenerTodos();
         for (int i = 0; i < simbolos.size(); i++) {
             Simbolo s = simbolos.get(i);
-            System.out.printf("| %-4d | %-20s | %-5s | %-9s | %-10s | %-5d | %-6d | %-4s | %-18s | %-5d | %-7d | %-5d | %-5d | %-5d |%n",
+            System.out.printf(
+                    "| %-4d | %-20s | %-5s | %-9s | %-10s | %-5d | %-6d | %-4s | %-18s | %-5d | %-7d | %-5d | %-5d | %-5d |%n",
                     (i + 1),
                     recortar(s.nombre, 20),
                     s.tipo,
@@ -283,19 +327,24 @@ public class Main {
         }
         System.out.println(linea);
         System.out.println(ANSI_BLUE + "  Total de simbolos declarados: " + simbolos.size()
-            + "   |   Memoria total para datos: " + TablaSimbolos.tamanoDelMarco() + " bytes" + ANSI_RESET);
+                + "   |   Memoria total para datos: " + TablaSimbolos.tamanoDelMarco() + " bytes" + ANSI_RESET);
         System.out.println(ANSI_BLUE
-            + "  NIVEL = profundidad de anidamiento; BLOQUE = ambito concreto (el SI y el SINO"
-            + "\n  comparten nivel pero son bloques distintos)."
-            + "\n  ANCHO en bytes: ENT 4 | DEC 8 | BOOL 1 | LETRA 2 | TXT 4 (referencia)."
-            + "\n  DESPL se reinicia en cada bloque: dos bloques hermanos comparten direcciones porque"
-            + "\n  no estan vivos a la vez." + ANSI_RESET);
+                + "\n  ANCHO en bytes: ENT 4 | DEC 8 | BOOL 1 | LETRA 2 | TXT 4 (referencia).");
     }
 
-    /** Corta un texto que no cabe en su columna y lo cierra con puntos suspensivos. */
+    /**
+     * Corta un texto que no cabe en su columna y lo cierra con puntos suspensivos.
+     */
+    /** " (desde-hasta)" de un bloque de memoria; nada si esta vacio. */
+    private static String rango(int inicio, int bytes) {
+        return (bytes <= 0) ? "" : " (" + inicio + "-" + (inicio + bytes - 1) + ")";
+    }
+
     private static String recortar(String texto, int ancho) {
-        if (texto == null) return "-";
-        if (texto.length() <= ancho) return texto;
+        if (texto == null)
+            return "-";
+        if (texto.length() <= ancho)
+            return texto;
         return texto.substring(0, ancho - 3) + "...";
     }
 
@@ -314,17 +363,17 @@ public class Main {
 
         if (EasyCompiler.arbolParcial) {
             System.out.println(ANSI_YELLOW
-                + "  ⚠️  El analisis se interrumpio por un error irrecuperable:"
-                + "\n     el arbol de abajo esta INCOMPLETO y solo llega hasta ese punto."
-                + ANSI_RESET);
+                    + "  ⚠️  El analisis se interrumpio por un error irrecuperable:"
+                    + "\n     el arbol de abajo esta INCOMPLETO y solo llega hasta ese punto."
+                    + ANSI_RESET);
         }
 
         System.out.print(ImpresorArbol.dibujar(raiz, completo));
 
         if (!completo) {
             System.out.println(ANSI_BLUE
-                + "  (usa --arbol-completo para ver la derivacion sin colapsar)"
-                + ANSI_RESET);
+                    + "  (usa --arbol-completo para ver la derivacion sin colapsar)"
+                    + ANSI_RESET);
         }
     }
 }
