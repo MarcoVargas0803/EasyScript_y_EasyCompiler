@@ -28,10 +28,26 @@ public class Simbolo {
     public int    linea;
     public int    columna;
 
+    /**
+     * Nombre con el que este simbolo aparece en el codigo de tres direcciones.
+     *
+     * Casi siempre es igual a 'nombre'. Cambia solo cuando la declaracion
+     * OCULTA a otra visible de un bloque exterior (el caso de ADV-03): el
+     * codigo intermedio no tiene bloques, asi que si las dos se llamaran "X"
+     * compartirian la misma memoria y la interior pisaria a la exterior. Se
+     * renombra como X$2, X$3... porque '$' no puede aparecer en un
+     * identificador de EasyScript (que si admite '_' y digitos): ningun nombre
+     * del programa puede chocar con el renombrado.
+     *
+     * La tabla impresa y los mensajes de error siguen usando 'nombre'.
+     */
+    public String nombreCodigo;
+
     public Simbolo(String nombre, String tipo, String categoria, String dimensiones,
                    int nivel, int bloque, boolean inicializada, String valor,
                    int linea, int columna) {
         this.nombre = nombre;
+        this.nombreCodigo = nombre;
         this.tipo = tipo;
         this.categoria = categoria;
         this.dimensiones = dimensiones;

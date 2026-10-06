@@ -1,0 +1,21 @@
+// muestra.txt
+//
+// Programa pequeño para probar que la compilación manual quedó bien hecha.
+// Usa una declaración, una condición, un ciclo y una salida: suficiente para
+// que el árbol, la tabla de símbolos y el código intermedio tengan contenido.
+
+INICIO{
+    ENT Contador = 0;
+    ENT Limite = 3;
+
+    MIENTRAS (Contador < Limite) {
+        IMPRIMIR("vuelta " + Contador);
+        Contador = Contador + 1;
+    }
+
+    SI (Contador == Limite) {
+        IMPRIMIR("Termino en " + Contador);
+    } SINO {
+        IMPRIMIR("Algo salio mal");
+    }
+}FIN

@@ -27,10 +27,14 @@ public class Cuadruplo {
      *
      *   "="          copia:             res = arg1
      *   "ampliar"    conversion ENT->DEC
+     *   "a_texto"    conversion de cualquier valor a TXT, antes de un concat
      *   "etiqueta"   destino de salto (no ejecuta nada)
      *   "ir_a"       salto incondicional a res
      *   "si_falso"   salta a res si arg1 es falso
-     *   "si_igual"   salta a res si arg1 == arg2
+     *   "si_verdadero" salta a res si arg1 es cierto
+     *   "si_igual"   salta a res si arg1 == arg2 (pruebas del SEGUN)
+     *   "si_>", "si_<=", ...  compara y salta en una sola instruccion:
+     *                salta a res si arg1 <relop> arg2
      *   "=[]"        lectura indexada:   res = arg1[arg2]
      *   "[]="        escritura indexada: arg1[arg2] = res
      *   "concat"     union de textos

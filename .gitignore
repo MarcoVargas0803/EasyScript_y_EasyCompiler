@@ -25,3 +25,5 @@ out/
 
 # Salida capturada para comparar regresiones (regla de oro de plan_correcciones.md)
 baseline/
+linea_base_u2/
+actual_u2/

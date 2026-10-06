@@ -1,0 +1,69 @@
+// intermedio_esquemas.txt
+//
+// Programa correcto que ejercita los esquemas de generacion donde hace falta
+// una conversion o una traduccion que el codigo fuente no escribe. No tiene
+// errores ni advertencias.
+//
+//   a) Comparacion entre ENT y DEC: el ENT se amplia antes de comparar
+//      (t = (DEC) N), aunque el resultado sea BOOL y no un numero.
+//   b) Concatenacion con un valor que no es TXT: se convierte antes con
+//      a_texto, en vez de dejar la conversion escondida dentro del concat.
+//   c) Arreglo y matriz DEC que reciben un ENT, en la carga inicial y en una
+//      escritura: el valor se amplia antes de guardarlo.
+//   d) X++ y X-- sobre un DEC (variable, elemento y contador de PARA) suman
+//      1.0, no 1. El PARA compara ademas X < 2, otra comparacion mixta.
+//   e) LEER("mensaje" + Variable): el mensaje se imprime y despues se lee.
+//      El '+' no concatena nada: solo separa el mensaje del destino.
+//
+// Para ver el codigo:      .\build.ps1 -Ejecutar intermedio_esquemas.txt -Codigo
+//
+// Salida esperada al ejecutar el codigo (VerificadorIntermedio, cuya entrada
+// fija entrega 3 en el primer LEER y 5 en el segundo):
+//
+//   a: mayor
+//   a: VERDADERO
+//   b: 7 2.5 E VERDADERO
+//   c: 4.0 3.0 1.0 7.0
+//   d: 0.5
+//   d: 1.5
+//   d: 2.5 1.5
+//   e: dame un numero:
+//   e: dame una edad:
+//   e: 3 5
+
+INICIO{
+    // a) comparaciones mixtas
+    ENT N = 7;
+    DEC Limite = 2.5;
+    SI (N > Limite) {
+        IMPRIMIR("a: mayor");
+    }
+    BOOL Igual = N == 7.0;
+    IMPRIMIR("a: " + Igual);
+
+    // b) concatenacion con ENT, DEC, LETRA y BOOL
+    LETRA Inicial = 'E';
+    IMPRIMIR("b: " + N + " " + Limite + " " + Inicial + " " + Igual);
+
+    // c) arreglo y matriz DEC con valores ENT
+    ARREGLO DEC Precios[3] = {1, 2.5, 3};
+    Precios[0] = 4;
+    MATRIZ DEC Tabla[2][2] = {{1, 2}, {3.5, 4}};
+    Tabla[1][1] = N;
+    IMPRIMIR("c: " + Precios[0] + " " + Precios[2] + " " + Tabla[0][0] + " " + Tabla[1][1]);
+
+    // d) incremento y decremento sobre DEC
+    DEC Total = 1.5;
+    Total++;
+    Precios[1]--;
+    PARA (DEC X = 0.5; X < 2; X++) {
+        IMPRIMIR("d: " + X);
+    }
+    IMPRIMIR("d: " + Total + " " + Precios[1]);
+
+    // e) LEER con mensaje, sobre una variable y sobre un elemento
+    ARREGLO ENT Edades[2] = {0, 0};
+    LEER("e: dame un numero: " + N);
+    LEER("e: dame una edad: " + Edades[1]);
+    IMPRIMIR("e: " + N + " " + Edades[1]);
+}FIN

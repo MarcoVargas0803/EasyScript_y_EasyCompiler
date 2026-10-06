@@ -56,7 +56,11 @@ foreach ($ruta in @($java, $javac, $JAVACC)) {
     }
 }
 
-Write-Host ("JDK: " + (& $java -version 2>&1 | Select-Object -First 1)) -ForegroundColor DarkGray
+# java -version escribe en stderr. Con "Stop", Windows PowerShell 5.1 lo toma
+# como error (NativeCommandError) y corta el script; por eso aqui se relaja solo
+# dentro de este bloque. En pwsh 7 no hace falta, pero tampoco estorba.
+$versionJdk = & { $ErrorActionPreference = "Continue"; & $java -version 2>&1 } | Select-Object -First 1
+Write-Host ("JDK: " + $versionJdk) -ForegroundColor DarkGray
 
 Set-Location $PSScriptRoot
 

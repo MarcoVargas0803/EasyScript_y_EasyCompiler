@@ -93,7 +93,9 @@ public class Atributo {
         a.token = t;
         a.simbolo = s;
         a.lexema = (t == null) ? "?" : t.image;
-        a.lugar = a.lexema;         // una variable se referencia por su nombre
+        // Una variable se referencia por su nombre EN EL CODIGO, que difiere del
+        // lexema cuando la declaracion oculta a otra (ver Simbolo.nombreCodigo).
+        a.lugar = (s.nombreCodigo == null) ? a.lexema : s.nombreCodigo;
         a.tipo = Tipo.desdeLexema(s.tipo);
         a.esLiteral = false;
         // Una constante se puede leer pero no reescribir: ese es justamente el

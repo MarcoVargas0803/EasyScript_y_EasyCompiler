@@ -1,0 +1,113 @@
+// intermedio_control.txt
+//
+// Programa correcto que ejercita el codigo de salto "bien construido" (Aho,
+// secciones 6.6.5 y 6.7.2). No tiene errores; da dos advertencias ADV-04, que
+// son justamente los casos h) e i): condiciones constantes.
+//
+//   a) A && B || C   y   b) A || B && C: cada operando salta solo hacia el
+//      lado que no cae. (En EasyScript && y || tienen la misma precedencia y
+//      se agrupan de izquierda a derecha.)
+//   c) !! sobre una comparacion, sobre un BOOL y sobre un parentesis: no
+//      emite ninguna instruccion, solo intercambia a donde va cada salto.
+//   d) SI anidados: el final del de dentro coincide con el de fuera y
+//      comparten etiqueta.
+//   e) SI / CONTRARIO sin SINO: el ultimo bloque no lleva "ir_a Lfin".
+//   f) PARA con la condicion compuesta.
+//   g) SEGUN sin DEFECTO: si ningun caso coincide se cae directo al final.
+//   h) BOOL guardado: la condicion se materializa en un valor.
+//   i) SI (VERDADERO) no emite ningun salto; SI (FALSO) solo uno.
+//
+// Para ver el codigo:      .\build.ps1 -Ejecutar intermedio_control.txt -Codigo
+//
+// Salida esperada al ejecutar el codigo (no lee nada):
+//
+//   a: si
+//   b: si
+//   c1: si
+//   c2: si
+//   c3: si
+//   d: dentro
+//   e: segundo
+//   f: 0 1 2
+//   g: dos
+//   g: fin
+//   h: FALSO VERDADERO
+//   i: siempre
+
+INICIO{
+    ENT A = 1;
+    ENT B = 2;
+    ENT C = 3;
+    BOOL Activo = FALSO;
+
+    // a) (A > 5 && B > 5) || C == 3
+    SI (A > 5 && B > 5 || C == 3) {
+        IMPRIMIR("a: si");
+    }
+
+    // b) (A == 1 || B > 5) && C > 2
+    SI (A == 1 || B > 5 && C > 2) {
+        IMPRIMIR("b: si");
+    }
+
+    // c) negaciones
+    SI (!! A > 5) {
+        IMPRIMIR("c1: si");
+    }
+    SI (!!Activo) {
+        IMPRIMIR("c2: si");
+    }
+    SI (!!(A > 5 || Activo)) {
+        IMPRIMIR("c3: si");
+    }
+
+    // d) SI anidados
+    SI (A == 1) {
+        SI (B == 2) {
+            IMPRIMIR("d: dentro");
+        }
+    }
+
+    // e) SI / CONTRARIO sin SINO
+    SI (A > 1) {
+        IMPRIMIR("e: primero");
+    } CONTRARIO (B > 1) {
+        IMPRIMIR("e: segundo");
+    }
+
+    // f) PARA con condicion compuesta
+    TXT Vueltas = "f:";
+    PARA (ENT I = 0; I < 10 && I < C; I++) {
+        Vueltas = Vueltas + " " + I;
+    }
+    IMPRIMIR(Vueltas);
+
+    // g) SEGUN sin DEFECTO
+    SEGUN (B) {
+        CASO 1:
+            IMPRIMIR("g: uno");
+            DETENER;
+        CASO 2:
+            IMPRIMIR("g: dos");
+            DETENER;
+    }
+    SEGUN (C) {
+        CASO 1:
+            IMPRIMIR("g: no");
+            DETENER;
+    }
+    IMPRIMIR("g: fin");
+
+    // h) condiciones guardadas como valor
+    BOOL Ambos = A > 0 && B > 5;
+    BOOL Alguno = A > 5 || !!Activo;
+    IMPRIMIR("h: " + Ambos + " " + Alguno);
+
+    // i) condiciones constantes
+    SI (VERDADERO) {
+        IMPRIMIR("i: siempre");
+    }
+    SI (FALSO) {
+        IMPRIMIR("i: nunca");
+    }
+}FIN

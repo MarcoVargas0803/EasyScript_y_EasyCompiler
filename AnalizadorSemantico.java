@@ -66,6 +66,64 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
     private boolean dentroDeLeer = false;
 
     /**
+     * Accesos indexados (ASTValorConArreglos) que son el DESTINO de un LEER.
+     * visit(ASTLeer) los marca antes de recorrer la expresion para que
+     * visit(ASTValorConArreglos) calcule su direccion sin leer el elemento.
+     */
+    private final java.util.Set<NodoEasy> destinosDeLeer = new java.util.HashSet<NodoEasy>();
+
+    /** Para cada destino indexado ya recorrido: {desplazamiento, temporal}. */
+    private final java.util.Map<NodoEasy, String[]> elementosDeLeer =
+        new java.util.HashMap<NodoEasy, String[]>();
+
+    /**
+     * Niveles de la expresion de un LEER cuyos '+' no suman ni concatenan: solo
+     * separan operandos, como en LEER("Edad: " + Edad). Sus tipos se comprueban
+     * igual, pero no emiten instruccion. Ver visit(ASTLeer).
+     */
+    private final java.util.Set<NodoEasy> cadenasDeLeer = new java.util.HashSet<NodoEasy>();
+
+    /** Los operandos que esos '+' separan. Cada uno se traduce al recorrerlo. */
+    private final java.util.Set<NodoEasy> operandosDeLeer = new java.util.HashSet<NodoEasy>();
+
+    /** Los destinos (raices de operando) del LEER que se esta recorriendo. */
+    private List<ASTValor> destinosDelLeerActual = new ArrayList<ASTValor>();
+
+    // ------------------------------------------------------------------
+    // Modo de salto: atributo HEREDADO de las condiciones (Aho, seccion 6.6.5)
+    //
+    // Quien consume una condicion le dice a la condicion que hacer con ella:
+    //
+    //   VALOR          producir un booleano (BOOL X = A > 1;)
+    //   CAE_VERDADERO  si es cierta, seguir de largo a la instruccion siguiente;
+    //                  saltar solo si es falsa. Es lo que pide un SI o un
+    //                  MIENTRAS, cuyo cuerpo va justo despues de la condicion.
+    //   CAE_FALSO      al reves: saltar solo si es cierta.
+    //
+    // Aho lo expresa con la etiqueta especial "fall": el lado que cae no emite
+    // ningun salto. Aqui se combina con las listas del backpatching (seccion
+    // 6.7.2): el lado que cae deja su lista vacia.
+    //
+    // Se pasa en un campo porque el visitor no tiene parametros propios. Lo
+    // leen visit(ASTCondicion) y visit(ASTCondicionSimple) al entrar, y lo
+    // devuelven a VALOR antes de recorrer a sus hijos, para que no se filtre a
+    // las expresiones de dentro.
+    // ------------------------------------------------------------------
+    private static final int VALOR = 0;
+    private static final int CAE_VERDADERO = 1;
+    private static final int CAE_FALSO = 2;
+
+    private int modoSalto = VALOR;
+
+    /**
+     * Un parentesis que hay que traducir como saltos y no como valor, y en que
+     * modo. Es el caso de SI (!!(A > 1 && B > 2)): sin esto, el parentesis
+     * produciria un booleano solo para volver a convertirlo en saltos.
+     */
+    private NodoEasy parentesisEnSalto = null;
+    private int modoDelParentesis = VALOR;
+
+    /**
      * Punto de entrada. Recorre el arbol completo y deja los errores en
      * EasyCompiler.listaErrores y los simbolos en TablaSimbolos.
      *
@@ -167,8 +225,9 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                     "Una constante recibe su valor una sola vez, en su declaracion. Por ejemplo: DEC CONST_Pi = 3.1416;");
             }
 
-            avisarSiOculta(node.tokenId);
+            Simbolo oculto = avisarSiOculta(node.tokenId);
             Simbolo s = instalar(node, esConstante ? "CONSTANTE" : "VARIABLE");
+            renombrarSiOculta(s, oculto);
             if (s != null) {
                 TablaSimbolos.asignarDireccion(s);
                 s.tieneValor = s.inicializada;
@@ -179,7 +238,7 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                     // ninguna instruccion: solo reserva espacio, y de eso ya se
                     // encargo la tabla de direcciones.
                     if (!inicial.esError()) {
-                        GeneradorCodigo.emitirAsignacion(s.nombre, inicial, Tipo.desdeLexema(s.tipo));
+                        GeneradorCodigo.emitirAsignacion(s.nombreCodigo, inicial, Tipo.desdeLexema(s.tipo));
                     }
                 }
             }
@@ -208,11 +267,12 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 }
             }
 
-            avisarSiOculta(node.tokenId);
+            Simbolo oculto = avisarSiOculta(node.tokenId);
             Simbolo s = instalar(node, "ARREGLO");
             if (s == null) {
                 return data;
             }
+            renombrarSiOculta(s, oculto);
             s.tieneValor = s.inicializada;
             s.filas = tamanoDeclarado(tamano, node.tokenId, "arreglo");
             // La direccion se asigna ahora y no en instalar(): hasta aqui no se
@@ -245,11 +305,12 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 }
             }
 
-            avisarSiOculta(node.tokenId);
+            Simbolo oculto = avisarSiOculta(node.tokenId);
             Simbolo s = instalar(node, "MATRIZ");
             if (s == null) {
                 return data;
             }
+            renombrarSiOculta(s, oculto);
             s.tieneValor = s.inicializada;
             s.filas = tamanoDeclarado(dimension(dimensiones, 0), node.tokenId, "matriz");
             s.columnas = tamanoDeclarado(dimension(dimensiones, 1), node.tokenId, "matriz");
@@ -289,19 +350,55 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                                          node.inicializada, valor);
     }
 
-    /** Avisa cuando una declaracion tapa otra de un bloque exterior. */
-    private void avisarSiOculta(Token id) {
+    /**
+     * Avisa cuando una declaracion tapa otra de un bloque exterior.
+     *
+     * Devuelve el simbolo ocultado (o null) porque la traduccion tambien lo
+     * necesita: ver renombrarSiOculta().
+     */
+    private Simbolo avisarSiOculta(Token id) {
         if (id == null || id.kind == EasyCompilerConstants.ERROR_IDENTIFICADOR_INVALIDO) {
-            return;
+            return null;
         }
         Simbolo previo = TablaSimbolos.buscar(id.image);
         if (previo == null || previo.bloque == TablaSimbolos.bloqueActual()) {
-            return;   // el duplicado en el mismo bloque es SEM-01, no esto
+            return null;   // el duplicado en el mismo bloque es SEM-01, no esto
         }
         advertencia("ADV-03", id.beginLine, id.beginColumn,
             "'" + id.image + "' oculta otra declaracion del mismo nombre (linea "
                 + previo.linea + ", columna " + previo.columna + ").",
             "Dentro de este bloque solo se ve la nueva. Renombra una de las dos si no era lo que querias.");
+        return previo;
+    }
+
+    /**
+     * Cuantas veces se ha renombrado ya cada nombre, para repartir X$2, X$3...
+     * Es un campo de instancia: cada analisis empieza la cuenta de cero.
+     */
+    private final java.util.Map<String, Integer> renombrados = new java.util.HashMap<String, Integer>();
+
+    /**
+     * TRADUCCION de una declaracion que oculta a otra: le da un nombre de codigo
+     * propio.
+     *
+     * En el programa las dos X son variables distintas, cada una en su bloque.
+     * El codigo de tres direcciones no tiene bloques: si ambas se escribieran
+     * "X", la interior pisaria el valor de la exterior y al salir del bloque la
+     * exterior ya no valdria lo que valia.
+     *
+     * Solo se renombra cuando la exterior esta VISIBLE. Dos PARA hermanos que
+     * declaran cada uno su "ENT I" no se ocultan entre si (cuando empieza el
+     * segundo, el primero ya cerro su ambito) y pueden compartir el nombre sin
+     * riesgo, porque nunca estan vivos a la vez.
+     */
+    private void renombrarSiOculta(Simbolo s, Simbolo oculto) {
+        if (s == null || oculto == null || s == oculto) {
+            return;
+        }
+        Integer previas = renombrados.get(s.nombre);
+        int n = (previas == null) ? 2 : previas.intValue() + 1;
+        renombrados.put(s.nombre, Integer.valueOf(n));
+        s.nombreCodigo = s.nombre + "$" + n;
     }
 
     /** Comprueba que el valor inicial encaje con el tipo declarado. */
@@ -358,16 +455,18 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      * un temporal en multiplicarla.
      *
      * Una matriz llega aplanada por el arbol, de modo que las posiciones se
-     * cuentan por filas, que es como estan guardadas.
+     * cuentan por filas, que es como estan guardadas. Un valor ENT dentro de un
+     * arreglo DEC se amplia antes, igual que en una asignacion.
      */
     private void emitirValoresIniciales(Simbolo s, List<Atributo> valores) {
+        Tipo base = Tipo.desdeLexema(s.tipo);
         for (int i = 0; i < valores.size(); i++) {
             Atributo v = valores.get(i);
             if (v.esError()) {
                 continue;
             }
-            GeneradorCodigo.emitir("[]=", s.nombre,
-                String.valueOf(i * s.anchoElemento), v.lugar);
+            GeneradorCodigo.emitirEscrituraIndexada(s.nombreCodigo,
+                String.valueOf(i * s.anchoElemento), v, base);
         }
     }
 
@@ -431,6 +530,24 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      */
     public Object visit(ASTValorConArreglos node, Object data) {
         if (node.parentizada) {
+            if (node == parentesisEnSalto) {
+                // Una condicion lo pidio en forma de saltos (ver
+                // visit(ASTCondicionSimple)): el modo pasa al interior.
+                int modo = modoDelParentesis;
+                parentesisEnSalto = null;
+                modoSalto = modo;
+                evaluarYApilar(node.hijo(0));
+                modoSalto = VALOR;
+                Atributo interior = aSaltos(pila.desapilar(), modo);
+                // Un parentesis ya no es un literal, aunque encierre uno: asi
+                // lo ve exigirBooleana (ADV-04) cuando el parentesis es valor.
+                Atributo s = Atributo.saltos(interior.tipo, interior.lexema, interior.token);
+                s.listaVerdadero = interior.listaVerdadero;
+                s.listaFalso = interior.listaFalso;
+                pila.apilar(s);
+                node.tipoInferido = pila.cima().tipo;
+                return data;
+            }
             evaluarYApilar(node.hijo(0));
             // Estamos dentro de una expresion, o sea en contexto de VALOR. Si lo
             // que habia entre parentesis era una condicion con && o ||, llega en
@@ -468,7 +585,15 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
             String desplazamiento =
                 GeneradorCodigo.emitirDesplazamiento(base.simbolo, indiceFila, indiceColumna);
             String t = GeneradorCodigo.nuevoTemporal(resultado.tipo);
-            GeneradorCodigo.emitir("=[]", base.simbolo.nombre, desplazamiento, t);
+            if (destinosDeLeer.contains(node)) {
+                // Este elemento es donde un LEER va a ESCRIBIR, asi que no se
+                // lee: leerlo antes de sobrescribirlo es trabajo tirado. Solo
+                // se calcula la direccion y se reserva el temporal que recibira
+                // el dato; visit(ASTLeer) emite despues el leer y el []=.
+                elementosDeLeer.put(node, new String[] { desplazamiento, t });
+            } else {
+                GeneradorCodigo.emitir("=[]", base.simbolo.nombreCodigo, desplazamiento, t);
+            }
             resultado = Atributo.temporal(resultado.tipo, base.lexema + "[...]", t, base.token);
         }
 
@@ -527,12 +652,34 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
     /**
      * Una condicion simple: una expresion, opcionalmente comparada con otra y
      * opcionalmente negada.
+     *
+     * TRADUCCION segun el modo de salto heredado:
+     *
+     *   VALOR:  t = A > 1           (y t2 = !!t si va negada)
+     *   saltos: si A <= 1 ir_a _    (comparacion y salto en una instruccion;
+     *                                el relacional depende del lado que cae)
+     *
+     * La negacion en modo de salto no emite nada: basta con pedirle al
+     * interior el modo contrario e intercambiar sus listas (Aho, figura 6.37,
+     * B -> !B1: B1.true = B.false, B1.false = B.true).
      */
     public Object visit(ASTCondicionSimple node, Object data) {
-        evaluarYApilar(node.hijo(0));
+        int modo = modoSalto;
+        modoSalto = VALOR;
+        int modoInterno = node.negado ? invertir(modo) : modo;
 
         // Con tres hijos, el de en medio es el operador relacional.
         Token opRel = operadorRelacionalDe(node);
+
+        // SI (!!(A > 1 && B > 2)): el parentesis se traduce directamente como
+        // saltos, sin pasar por un booleano intermedio.
+        if (modo != VALOR && opRel == null) {
+            parentesisEnSalto = parentesisRaiz(node.hijo(0));
+            modoDelParentesis = modoInterno;
+        }
+        evaluarYApilar(node.hijo(0));
+        parentesisEnSalto = null;
+
         if (opRel != null) {
             evaluarYApilar(node.hijo(2));
             Atributo der = pila.desapilar();
@@ -541,8 +688,18 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
             if (r.esError() && !izq.esError() && !der.esError()) {
                 reportarRelacionalInvalida(opRel, izq, der);
             }
-            String lugar = GeneradorCodigo.emitirBinaria(opRel.image, izq, der, r);
-            pila.apilar(Atributo.temporal(r, izq.lexema + " " + opRel.image + " " + der.lexema, lugar, opRel));
+            String lexema = izq.lexema + " " + opRel.image + " " + der.lexema;
+            if (modo == VALOR) {
+                String lugar = GeneradorCodigo.emitirBinaria(opRel.image, izq, der, r);
+                pila.apilar(Atributo.temporal(r, lexema, lugar, opRel));
+            } else {
+                boolean siCierta = (modoInterno == CAE_FALSO);
+                int salto = GeneradorCodigo.emitirSaltoRelacional(opRel.image, izq, der, siCierta);
+                Atributo s = Atributo.saltos(r, lexema, opRel);
+                s.listaVerdadero = siCierta ? GeneradorCodigo.nuevaLista(salto) : new ArrayList<Integer>();
+                s.listaFalso = siCierta ? new ArrayList<Integer>() : GeneradorCodigo.nuevaLista(salto);
+                pila.apilar(s);
+            }
         }
 
         if (node.negado) {
@@ -553,8 +710,19 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                     "La negacion '!!' solo se aplica a valores BOOL; se recibio " + a.tipo + ".",
                     "Niega una condicion completa. Por ejemplo: !!(Numero > 5).");
             }
-            String lugar = GeneradorCodigo.emitirUnaria("!!", a, r);
-            pila.apilar(Atributo.temporal(r, "!!" + a.lexema, lugar, a.token));
+            if (modo == VALOR) {
+                String lugar = GeneradorCodigo.emitirUnaria("!!", a, r);
+                pila.apilar(Atributo.temporal(r, "!!" + a.lexema, lugar, a.token));
+            } else {
+                Atributo interior = aSaltos(a, modoInterno);
+                Atributo s = Atributo.saltos(r, "!!" + a.lexema, a.token);
+                s.listaVerdadero = interior.listaFalso;
+                s.listaFalso = interior.listaVerdadero;
+                pila.apilar(s);
+            }
+        } else if (modo != VALOR && opRel == null) {
+            // Un BOOL suelto (una variable, un literal, un parentesis).
+            pila.apilar(aSaltos(pila.desapilar(), modo));
         }
 
         node.tipoInferido = pila.cima().tipo;
@@ -594,33 +762,57 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      * Dicho en voz alta: con &&, si el izquierdo sale cierto todavia no sabemos
      * nada y hay que seguir mirando; si sale falso, ya terminamos. Con ||, al
      * reves.
+     *
+     * CODIGO DE PASO (Aho, seccion 6.6.5). Como el operando derecho se emite
+     * justo despues del izquierdo, el caso "hay que seguir mirando" no
+     * necesita salto: basta con caer en el. Por eso cada operando recibe un
+     * modo de salto segun el operador que lo SIGUE:
+     *
+     *   antes de &&   CAE_VERDADERO   (solo salta si es falso)
+     *   antes de ||   CAE_FALSO       (solo salta si es cierto)
+     *   el ultimo     el modo que pidio quien consume la condicion
+     *
+     * Asi  SI (A > 1 && B > 2)  queda en dos instrucciones, una por
+     * comparacion, en vez de una comparacion, un salto condicional y un salto
+     * incondicional por cada una.
+     *
+     * En contexto de VALOR (BOOL X = A > 1 && B > 2;) se genera igual, cayendo
+     * en verdadero, y quien la consume la materializa en un booleano.
      */
     public Object visit(ASTCondicion node, Object data) {
+        int modo = modoSalto;
+        modoSalto = VALOR;
+
+        if (node.sinOperadores()) {
+            // Una sola condicion simple: el modo pasa tal cual.
+            modoSalto = modo;
+            evaluarYApilar(node.hijo(0));
+            modoSalto = VALOR;
+            node.tipoInferido = pila.cima().tipo;
+            return data;
+        }
+
+        int modoFinal = (modo == VALOR) ? CAE_VERDADERO : modo;
+
+        modoSalto = modoDeOperando(node, 0, modoFinal);
         evaluarYApilar(node.hijo(0));
+        modoSalto = VALOR;
 
         for (int i = 0; i < node.operadores.size(); i++) {
             Token op = node.operador(i);
             boolean esY = "&&".equals(op.image);
             Atributo izq = pila.desapilar();
+            Atributo saltosIzq = aSaltos(izq, modoDeOperando(node, i, modoFinal));
 
-            // Si el izquierdo no es booleano hay un error de tipos, y montar el
-            // cortocircuito sobre el no tendria sentido: se evalua todo de
-            // forma corriente y el error se reporta igual, unas lineas mas
-            // abajo.
-            boolean cortocircuito = (izq.tipo == Tipo.BOOL);
+            // El marcador M de Aho: este es el punto donde empieza el operando
+            // derecho, y por tanto el destino de los saltos que dicen "con lo
+            // que se del izquierdo todavia no basta". Con el codigo de paso esa
+            // lista suele venir vacia, y entonces no hace falta etiqueta.
+            GeneradorCodigo.completarAqui(esY ? saltosIzq.listaVerdadero : saltosIzq.listaFalso);
 
-            Atributo saltosIzq = null;
-            if (cortocircuito) {
-                saltosIzq = aSaltos(izq);
-                // El marcador M de Aho: este es el punto donde empieza el
-                // operando derecho, y por tanto el destino del salto que dice
-                // "con lo que se del izquierdo todavia no basta".
-                String entradaDerecha = GeneradorCodigo.etiquetaAqui();
-                GeneradorCodigo.completar(
-                    esY ? saltosIzq.listaVerdadero : saltosIzq.listaFalso, entradaDerecha);
-            }
-
+            modoSalto = modoDeOperando(node, i + 1, modoFinal);
             evaluarYApilar(node.hijo(i + 1));
+            modoSalto = VALOR;
             Atributo der = pila.desapilar();
 
             Tipo r = CuboSemantico.resultado(izq.tipo, op.image, der.tipo);
@@ -635,26 +827,56 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
 
             String lexema = izq.lexema + " " + op.image + " " + der.lexema;
 
-            if (cortocircuito) {
-                Atributo saltosDer = aSaltos(der);
-                Atributo res = Atributo.saltos(r, lexema, op);
-                if (esY) {
-                    res.listaVerdadero = saltosDer.listaVerdadero;
-                    res.listaFalso =
-                        GeneradorCodigo.unir(saltosIzq.listaFalso, saltosDer.listaFalso);
-                } else {
-                    res.listaVerdadero =
-                        GeneradorCodigo.unir(saltosIzq.listaVerdadero, saltosDer.listaVerdadero);
-                    res.listaFalso = saltosDer.listaFalso;
-                }
-                pila.apilar(res);
+            Atributo saltosDer = aSaltos(der, modoDeOperando(node, i + 1, modoFinal));
+            Atributo res = Atributo.saltos(r, lexema, op);
+            if (esY) {
+                res.listaVerdadero = saltosDer.listaVerdadero;
+                res.listaFalso =
+                    GeneradorCodigo.unir(saltosIzq.listaFalso, saltosDer.listaFalso);
             } else {
-                String lugar = GeneradorCodigo.emitirBinaria(op.image, izq, der, r);
-                pila.apilar(Atributo.temporal(r, lexema, lugar, op));
+                res.listaVerdadero =
+                    GeneradorCodigo.unir(saltosIzq.listaVerdadero, saltosDer.listaVerdadero);
+                res.listaFalso = saltosDer.listaFalso;
             }
+            pila.apilar(res);
         }
         node.tipoInferido = pila.cima().tipo;
         return data;
+    }
+
+    /**
+     * Modo de salto del operando i de una cadena && / ||: lo decide el
+     * operador que lo sigue; el ultimo hereda el de la cadena entera.
+     */
+    private int modoDeOperando(NodoEasy node, int i, int modoFinal) {
+        if (i >= node.operadores.size()) {
+            return modoFinal;
+        }
+        return "&&".equals(node.lexemaOperador(i)) ? CAE_VERDADERO : CAE_FALSO;
+    }
+
+    private static int invertir(int modo) {
+        if (modo == CAE_VERDADERO) return CAE_FALSO;
+        if (modo == CAE_FALSO) return CAE_VERDADERO;
+        return VALOR;
+    }
+
+    /**
+     * El parentesis al que se reduce una expresion sin operadores, o null.
+     * Es el mismo descenso que valorRaiz(), pero buscando un parentesis.
+     */
+    private NodoEasy parentesisRaiz(NodoEasy n) {
+        while (n != null) {
+            if (n instanceof ASTValorConArreglos && n.parentizada) {
+                return n;
+            }
+            if (n instanceof ASTValor || !n.sinOperadores() || n.unario || n.negado
+                    || n.parentizada || n.numIndices > 0) {
+                return null;
+            }
+            n = n.hijo(0);
+        }
+        return null;
     }
 
     // =====================================================================
@@ -673,22 +895,58 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
     // =====================================================================
 
     /**
-     * Convierte un valor booleano en saltos.
+     * Convierte un valor booleano en saltos, en el modo indicado.
      *
      * Si ya venia como saltos se devuelve tal cual. Si venia como valor, se
-     * emiten sus dos salidas -una si es cierto y otra si no-, ambas con el
-     * destino todavia en blanco.
+     * emite UN solo salto, el del lado que no cae (Aho, figura 6.39):
+     *
+     *   CAE_VERDADERO:  si_falso v ir_a _      (a la lista falsa)
+     *   CAE_FALSO:      si v ir_a _            (a la lista verdadera)
+     *
+     * Un literal ya se sabe a donde va: VERDADERO que cae en verdadero no
+     * emite nada, y FALSO que cae en verdadero es un ir_a sin condicion.
+     *
+     * El resultado conserva tipo, literal y token del valor: exigirBooleana
+     * los usa para SEM-28 y ADV-04.
      */
-    private Atributo aSaltos(Atributo v) {
+    private Atributo aSaltos(Atributo v, int modo) {
         if (v.esSaltos()) {
             return v;
         }
         Atributo c = Atributo.saltos(v.tipo, v.lexema, v.token);
-        c.listaVerdadero = GeneradorCodigo.nuevaLista(
-            GeneradorCodigo.emitir("si_verdadero", v.lugar, "-", GeneradorCodigo.PENDIENTE));
-        c.listaFalso = GeneradorCodigo.nuevaLista(
-            GeneradorCodigo.emitir("ir_a", "-", "-", GeneradorCodigo.PENDIENTE));
+        c.esLiteral = v.esLiteral;
+        c.valorConstante = v.valorConstante;
+        c.listaVerdadero = new ArrayList<Integer>();
+        c.listaFalso = new ArrayList<Integer>();
+        boolean caeEnVerdadero = (modo != CAE_FALSO);
+
+        int literal = literalBooleano(v);
+        if (literal != 0) {
+            boolean cierto = (literal > 0);
+            if (cierto != caeEnVerdadero) {
+                int salto = GeneradorCodigo.emitir("ir_a", "-", "-", GeneradorCodigo.PENDIENTE);
+                (cierto ? c.listaVerdadero : c.listaFalso).add(Integer.valueOf(salto));
+            }
+            return c;
+        }
+        if (caeEnVerdadero) {
+            c.listaFalso.add(Integer.valueOf(
+                GeneradorCodigo.emitir("si_falso", v.lugar, "-", GeneradorCodigo.PENDIENTE)));
+        } else {
+            c.listaVerdadero.add(Integer.valueOf(
+                GeneradorCodigo.emitir("si_verdadero", v.lugar, "-", GeneradorCodigo.PENDIENTE)));
+        }
         return c;
+    }
+
+    /** 1 si el valor es el literal VERDADERO, -1 si es FALSO, 0 si no es literal. */
+    private static int literalBooleano(Atributo v) {
+        if (!v.esLiteral || v.token == null) {
+            return 0;
+        }
+        if (v.token.kind == EasyCompilerConstants.VERDADERO_BOOLEANO) return 1;
+        if (v.token.kind == EasyCompilerConstants.FALSO_BOOLEANO) return -1;
+        return 0;
     }
 
     /**
@@ -711,11 +969,11 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
         String t = GeneradorCodigo.nuevoTemporal(Tipo.BOOL);
         String fin = GeneradorCodigo.nuevaEtiqueta();
 
-        GeneradorCodigo.completar(c.listaVerdadero, GeneradorCodigo.etiquetaAqui());
+        GeneradorCodigo.completarAqui(c.listaVerdadero);
         GeneradorCodigo.emitir("=", "VERDADERO", "-", t);
         GeneradorCodigo.emitir("ir_a", "-", "-", fin);
 
-        GeneradorCodigo.completar(c.listaFalso, GeneradorCodigo.etiquetaAqui());
+        GeneradorCodigo.completarAqui(c.listaFalso);
         GeneradorCodigo.emitir("=", "FALSO", "-", t);
         GeneradorCodigo.etiquetar(fin);
 
@@ -723,19 +981,15 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
     }
 
     /**
-     * Emite la salida de una estructura de control cuando su condicion es falsa.
-     *
-     * Sirve para las dos formas: si la condicion trae saltos pendientes se
-     * rellenan (el camino falso sale, el verdadero entra al cuerpo); si trae un
-     * valor, basta un si_falso corriente.
+     * Evalua la condicion de una estructura de control en forma de saltos,
+     * cayendo en verdadero: el cuerpo va justo despues. Devuelve siempre
+     * saltos (con listas, quiza vacias) que quien llama debe completar.
      */
-    private void saltarSiFalso(Atributo c, String etiquetaFalso) {
-        if (c.esSaltos()) {
-            GeneradorCodigo.completar(c.listaFalso, etiquetaFalso);
-            GeneradorCodigo.completar(c.listaVerdadero, GeneradorCodigo.etiquetaAqui());
-            return;
-        }
-        GeneradorCodigo.emitir("si_falso", c.lugar, "-", etiquetaFalso);
+    private Atributo condicionEnSaltos(NodoEasy nodoCondicion, String estructura) {
+        modoSalto = CAE_VERDADERO;
+        Atributo c = condicionBooleana(nodoCondicion, estructura);
+        modoSalto = VALOR;
+        return aSaltos(c, CAE_VERDADERO);
     }
 
     /** Evalua un hijo en un contexto de VALOR: si trae saltos, los materializa. */
@@ -752,16 +1006,22 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      */
     private Object reducirCadena(NodoEasy node, Object data) {
         evaluarYApilar(node.hijo(0));
+        boolean emitir = !cadenasDeLeer.contains(node);
         for (int i = 0; i < node.operadores.size(); i++) {
             evaluarYApilar(node.hijo(i + 1));
-            reducirBinaria(node.operador(i));
+            reducirBinaria(node.operador(i), emitir);
         }
         node.tipoInferido = pila.cima().tipo;
         return data;
     }
 
-    /** Saca dos operandos, consulta el cubo, reporta si procede y apila. */
-    private void reducirBinaria(Token op) {
+    /**
+     * Saca dos operandos, consulta el cubo, reporta si procede y apila.
+     *
+     * Con emitir = false solo comprueba: es el '+' que separa los operandos de
+     * un LEER, que no calcula ningun valor.
+     */
+    private void reducirBinaria(Token op, boolean emitir) {
         Atributo der = pila.desapilar();
         Atributo izq = pila.desapilar();
         String lexemaOp = op.image;
@@ -786,7 +1046,7 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
 
         // TRADUCCION: la operacion se convierte en un cuadruplo y su resultado
         // deja de ser una idea para pasar a vivir en un temporal concreto.
-        String lugar = GeneradorCodigo.emitirBinaria(lexemaOp, izq, der, r);
+        String lugar = emitir ? GeneradorCodigo.emitirBinaria(lexemaOp, izq, der, r) : "?";
         pila.apilar(Atributo.temporal(r, izq.lexema + " " + lexemaOp + " " + der.lexema, lugar, op));
     }
 
@@ -850,7 +1110,7 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 // TRADUCCION: X++ no es un operador del codigo intermedio; es
                 // una suma corriente escrita de forma corta.
                 String aritmetico = (op.kind == EasyCompilerConstants.INCREMENTO_AL_VALOR) ? "+" : "-";
-                GeneradorCodigo.emitir(aritmetico, id.image, "1", id.image);
+                emitirIncremento(destino, aritmetico, indiceFila, indiceColumna);
             } else if (origen != null) {
                 comprobarAsignacion(destino, origen, id);
                 emitirAsignacionTraducida(destino, origen, indiceFila, indiceColumna);
@@ -880,12 +1140,49 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
         Simbolo s = destino.simbolo;
 
         if (indiceFila == null) {
-            GeneradorCodigo.emitirAsignacion(s.nombre, origen, destino.tipo);
+            GeneradorCodigo.emitirAsignacion(s.nombreCodigo, origen, destino.tipo);
             return;
         }
 
         String desplazamiento = GeneradorCodigo.emitirDesplazamiento(s, indiceFila, indiceColumna);
-        GeneradorCodigo.emitir("[]=", s.nombre, desplazamiento, origen.lugar);
+        GeneradorCodigo.emitirEscrituraIndexada(s.nombreCodigo, desplazamiento, origen, destino.tipo);
+    }
+
+    /**
+     * Emite X++ / X-- (o con --, la resta).
+     *
+     * Sobre una variable simple es una sola instruccion: X = X + 1. Sobre un
+     * elemento no basta, porque un elemento no tiene nombre propio: hay que
+     * calcular su direccion, leerlo, sumarle y volver a guardarlo ahi.
+     *
+     *     t  = desplazamiento
+     *     t2 = V[t]
+     *     t3 = t2 + 1
+     *     V[t] = t3
+     *
+     * La direccion se calcula una sola vez y sirve para la lectura y para la
+     * escritura: el indice se evalua una sola vez, que es lo que el
+     * programador escribio.
+     *
+     * El 1 va en el tipo de X: sobre un DEC se suma 1.0.
+     */
+    private void emitirIncremento(Atributo destino, String aritmetico,
+                                  Atributo indiceFila, Atributo indiceColumna) {
+        Simbolo s = destino.simbolo;
+        if (s == null) {
+            return;
+        }
+        String uno = GeneradorCodigo.unoDelTipo(destino.tipo);
+        if (indiceFila == null) {
+            GeneradorCodigo.emitir(aritmetico, s.nombreCodigo, uno, s.nombreCodigo);
+            return;
+        }
+        String desplazamiento = GeneradorCodigo.emitirDesplazamiento(s, indiceFila, indiceColumna);
+        String valor = GeneradorCodigo.nuevoTemporal(destino.tipo);
+        GeneradorCodigo.emitir("=[]", s.nombreCodigo, desplazamiento, valor);
+        String nuevo = GeneradorCodigo.nuevoTemporal(destino.tipo);
+        GeneradorCodigo.emitir(aritmetico, valor, uno, nuevo);
+        GeneradorCodigo.emitir("[]=", s.nombreCodigo, desplazamiento, nuevo);
     }
 
     // =====================================================================
@@ -905,10 +1202,10 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
     /**
      * SI (c1) { S1 } CONTRARIO (c2) { S2 } SINO { S3 }
      *
-     *          si_falso c1 ir_a Lf1
+     *          c1, cayendo en verdadero (sus saltos falsos van a Lf1)
      *          S1
      *          ir_a Lfin
-     *   Lf1:   si_falso c2 ir_a Lf2
+     *   Lf1:   c2, cayendo en verdadero (sus saltos falsos van a Lf2)
      *          S2
      *          ir_a Lfin
      *   Lf2:   S3
@@ -917,9 +1214,15 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      * Los hijos llegan como parejas (Condicion, Sentencias), y un ASTSentencias
      * suelto al final es el SINO. Cada CONTRARIO pide su propia etiqueta de
      * fallo, y todos los caminos confluyen en la misma Lfin.
+     *
+     * El ultimo bloque NO lleva "ir_a Lfin": Lfin esta justo detras, y saltar
+     * a la instruccion siguiente es un goto redundante (Aho, seccion 6.6.5).
+     * Sin SINO, el fallo de la ultima condicion tambien va directo a Lfin.
+     * Las etiquetas se crean solo si algun salto llega a ellas.
      */
     public Object visit(ASTCondicionalSi node, Object data) {
-        String etiquetaFin = GeneradorCodigo.nuevaEtiqueta();
+        List<Integer> haciaElFin = new ArrayList<Integer>();
+        List<Integer> falloPendiente = null;
         int i = 0;
         while (i < node.jjtGetNumChildren()) {
             NodoEasy h = node.hijo(i);
@@ -928,43 +1231,58 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 continue;
             }
             if (h instanceof ASTCondicion) {
-                Atributo c = condicionBooleana(h, "SI");
-                String etiquetaFallo = GeneradorCodigo.nuevaEtiqueta();
-                saltarSiFalso(c, etiquetaFallo);
+                // Aqui empieza este CONTRARIO: el fallo del anterior llega aqui.
+                GeneradorCodigo.completarAqui(falloPendiente);
+                Atributo c = condicionEnSaltos(h, "SI");
+                GeneradorCodigo.completarAqui(c.listaVerdadero);
 
                 NodoEasy cuerpo = node.hijo(i + 1);
                 if (cuerpo != null) {
                     cuerpo.jjtAccept(this, data);
                 }
-                GeneradorCodigo.emitir("ir_a", "-", "-", etiquetaFin);
-                GeneradorCodigo.etiquetar(etiquetaFallo);
+                if (hayHijosDesde(node, i + 2)) {
+                    haciaElFin.add(Integer.valueOf(
+                        GeneradorCodigo.emitir("ir_a", "-", "-", GeneradorCodigo.PENDIENTE)));
+                }
+                falloPendiente = c.listaFalso;
                 i += 2;
             } else {
                 // ASTSentencias suelto: es el bloque del SINO.
+                GeneradorCodigo.completarAqui(falloPendiente);
+                falloPendiente = null;
                 h.jjtAccept(this, data);
                 i++;
             }
         }
-        GeneradorCodigo.etiquetar(etiquetaFin);
+        GeneradorCodigo.completarAqui(GeneradorCodigo.unir(haciaElFin, falloPendiente));
         return data;
+    }
+
+    /** true si el nodo tiene algun hijo (no nulo) a partir de la posicion i. */
+    private static boolean hayHijosDesde(NodoEasy node, int i) {
+        for (int k = i; k < node.jjtGetNumChildren(); k++) {
+            if (node.hijo(k) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
      * MIENTRAS (c) { S }
      *
-     *   Lini:  si_falso c ir_a Lfin
+     *   Lini:  c, cayendo en verdadero (sus saltos falsos van a Lfin)
      *          S
      *          ir_a Lini
      *   Lfin:
      *
      * La etiqueta de entrada va antes de la condicion porque hay que volver a
-     * evaluarla en cada vuelta, no solo la primera.
+     * evaluarla en cada vuelta, no solo la primera. Lfin solo existe si la
+     * condicion puede fallar: MIENTRAS (VERDADERO) no la necesita.
      */
     public Object visit(ASTBucleMientras node, Object data) {
-        String etiquetaInicio = GeneradorCodigo.nuevaEtiqueta();
-        String etiquetaFin = GeneradorCodigo.nuevaEtiqueta();
-
-        GeneradorCodigo.etiquetar(etiquetaInicio);
+        String etiquetaInicio = GeneradorCodigo.etiquetaAqui();
+        List<Integer> salida = null;
 
         for (int i = 0; i < node.jjtGetNumChildren(); i++) {
             NodoEasy h = node.hijo(i);
@@ -972,15 +1290,16 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 continue;
             }
             if (h instanceof ASTCondicion) {
-                Atributo c = condicionBooleana(h, "MIENTRAS");
-                saltarSiFalso(c, etiquetaFin);
+                Atributo c = condicionEnSaltos(h, "MIENTRAS");
+                GeneradorCodigo.completarAqui(c.listaVerdadero);
+                salida = c.listaFalso;
             } else {
                 h.jjtAccept(this, data);
             }
         }
 
         GeneradorCodigo.emitir("ir_a", "-", "-", etiquetaInicio);
-        GeneradorCodigo.etiquetar(etiquetaFin);
+        GeneradorCodigo.completarAqui(salida);
         return data;
     }
 
@@ -988,7 +1307,7 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      * PARA (ENT I = 0; I < 10; I++) { S }
      *
      *          I = 0
-     *   Lini:  si_falso I < 10 ir_a Lfin
+     *   Lini:  si I >= 10 ir_a Lfin
      *          S
      *          I = I + 1
      *          ir_a Lini
@@ -1013,9 +1332,8 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
         try {
             reutilizarAmbito = true;
 
-            String etiquetaInicio = GeneradorCodigo.nuevaEtiqueta();
-            String etiquetaFin = GeneradorCodigo.nuevaEtiqueta();
-            boolean inicioEtiquetado = false;
+            String etiquetaInicio = null;
+            List<Integer> salida = null;
 
             for (int i = 0; i < node.jjtGetNumChildren(); i++) {
                 NodoEasy h = node.hijo(i);
@@ -1025,20 +1343,20 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 if (h instanceof ASTCondicion) {
                     // La etiqueta va justo antes de la condicion: la inicializacion
                     // corre una sola vez y queda fuera del ciclo.
-                    GeneradorCodigo.etiquetar(etiquetaInicio);
-                    inicioEtiquetado = true;
-                    Atributo c = condicionBooleana(h, "PARA");
-                    saltarSiFalso(c, etiquetaFin);
+                    etiquetaInicio = GeneradorCodigo.etiquetaAqui();
+                    Atributo c = condicionEnSaltos(h, "PARA");
+                    GeneradorCodigo.completarAqui(c.listaVerdadero);
+                    salida = c.listaFalso;
                 } else {
                     h.jjtAccept(this, data);
                 }
             }
 
             emitirPasoDelPara(node);
-            if (inicioEtiquetado) {
+            if (etiquetaInicio != null) {
                 GeneradorCodigo.emitir("ir_a", "-", "-", etiquetaInicio);
             }
-            GeneradorCodigo.etiquetar(etiquetaFin);
+            GeneradorCodigo.completarAqui(salida);
             return data;
         } finally {
             reutilizarAmbito = false;
@@ -1055,7 +1373,13 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
         }
         String aritmetico =
             (operador.kind == EasyCompilerConstants.INCREMENTO_AL_VALOR) ? "+" : "-";
-        GeneradorCodigo.emitir(aritmetico, variable.image, "1", variable.image);
+        // El ambito del PARA sigue abierto aqui, asi que buscar() encuentra el
+        // mismo contador que la cabecera; si ese contador oculta a otra I de
+        // fuera, su nombre de codigo es I$n y el paso debe usarlo tambien.
+        Simbolo s = TablaSimbolos.buscar(variable.image);
+        String nombre = (s == null) ? variable.image : s.nombreCodigo;
+        String uno = GeneradorCodigo.unoDelTipo((s == null) ? Tipo.ENT : Tipo.desdeLexema(s.tipo));
+        GeneradorCodigo.emitir(aritmetico, nombre, uno, nombre);
     }
 
     /**
@@ -1107,16 +1431,48 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      * Necesita al menos un sitio donde guardar lo que se lea. Se buscan los
      * identificadores del arbol de la expresion: si no hay ninguno, el LEER no
      * hace nada; si el que hay es una constante, no se puede escribir en el.
+     *
+     * TRADUCCION. Aqui el '+' no suma ni concatena: separa lo que se muestra de
+     * donde se guarda. LEER("Edad: " + Edad) no calcula "Edad: " . Edad (que
+     * ademas leeria Edad antes de tener valor); se traduce operando por
+     * operando, en el orden escrito:
+     *
+     *     imprimir "Edad: "
+     *     leer Edad
+     *
+     * Los tipos de esos '+' se siguen comprobando como siempre, asi que los
+     * errores no cambian; solo dejan de emitir instruccion.
      */
     public Object visit(ASTLeer node, Object data) {
         int marca = pila.marca();
         boolean antes = dentroDeLeer;
+        List<ASTValor> identificadores = new ArrayList<ASTValor>();
         try {
             dentroDeLeer = true;
-            node.childrenAccept(this, data);
 
-            List<ASTValor> identificadores = new ArrayList<ASTValor>();
+            // Los destinos se buscan ANTES de recorrer la expresion: el recorrido
+            // tiene que saber cuales accesos indexados son destino para calcular
+            // su direccion sin leer el elemento (ver visit(ASTValorConArreglos)).
             recolectarIdentificadores(node, identificadores);
+            for (int i = 0; i < identificadores.size(); i++) {
+                Node padre = identificadores.get(i).jjtGetParent();
+                if (padre instanceof ASTValorConArreglos
+                        && ((ASTValorConArreglos) padre).numIndices > 0) {
+                    destinosDeLeer.add((NodoEasy) padre);
+                }
+            }
+
+            // Sin destinos el LEER es SEM-37 y no se traduce.
+            if (!identificadores.isEmpty()) {
+                destinosDelLeerActual = identificadores;
+                for (int i = 0; i < node.jjtGetNumChildren(); i++) {
+                    if (node.hijo(i) instanceof ASTExpresionConcatenada) {
+                        separarOperandosDeLeer(node.hijo(i));
+                    }
+                }
+            }
+
+            node.childrenAccept(this, data);
 
             if (identificadores.isEmpty()) {
                 error("SEM-37", node.jjtGetFirstToken(),
@@ -1130,6 +1486,16 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
             }
             return data;
         } finally {
+            // Las marcas solo valen para este LEER: un mismo nodo nunca se
+            // vuelve a visitar, pero dejarlas vivas seria un estado oculto.
+            for (int i = 0; i < identificadores.size(); i++) {
+                Node padre = identificadores.get(i).jjtGetParent();
+                destinosDeLeer.remove(padre);
+                elementosDeLeer.remove(padre);
+            }
+            cadenasDeLeer.clear();
+            operandosDeLeer.clear();
+            destinosDelLeerActual = new ArrayList<ASTValor>();
             dentroDeLeer = antes;
             pila.restaurar(marca);
         }
@@ -1151,10 +1517,130 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
             return;
         }
         s.tieneValor = true;
-        GeneradorCodigo.emitir("leer", "-", "-", t.image);
     }
 
-    /** Recolecta las hojas ASTValor que son identificadores. */
+    /**
+     * Marca, bajando desde la expresion del LEER, los niveles cuyos operadores
+     * son todos '+' (cadenasDeLeer) y los operandos que esos '+' separan
+     * (operandosDeLeer). Un nivel con otro operador, un parentesis o un acceso
+     * indexado ya no es separador: es un operando entero.
+     */
+    private void separarOperandosDeLeer(NodoEasy n) {
+        if (n == null) {
+            return;
+        }
+        boolean nivelDeSuma = n instanceof ASTExpresionConcatenada
+                           || n instanceof ASTExpresionAritmetica
+                           || n instanceof ASTExpresionNivel1;
+        for (int i = 0; nivelDeSuma && i < n.operadores.size(); i++) {
+            if (!"+".equals(n.lexemaOperador(i))) {
+                nivelDeSuma = false;
+            }
+        }
+        if (!nivelDeSuma) {
+            operandosDeLeer.add(n);
+            return;
+        }
+        if (!n.sinOperadores()) {
+            cadenasDeLeer.add(n);
+        }
+        for (int i = 0; i < n.jjtGetNumChildren(); i++) {
+            separarOperandosDeLeer(n.hijo(i));
+        }
+    }
+
+    /**
+     * Traduce un operando de LEER recien recorrido (lo llama evaluarYApilar).
+     *
+     *   - si es un destino (una variable o un elemento):  leer
+     *   - si no contiene ningun destino (el mensaje):      imprimir
+     *   - si es una expresion con destinos dentro, como LEER(A - B), que el
+     *     lenguaje admite pero no tiene un significado claro: se lee cada uno,
+     *     como se hacia antes.
+     */
+    private void traducirOperandoDeLeer(NodoEasy operando, Atributo valor) {
+        ASTValor raiz = valorRaiz(operando);
+        if (raiz != null && destinosDelLeerActual.contains(raiz)) {
+            emitirLectura(raiz);
+            return;
+        }
+        boolean conDestinos = false;
+        for (int i = 0; i < destinosDelLeerActual.size(); i++) {
+            ASTValor d = destinosDelLeerActual.get(i);
+            if (desciendeDe(d, operando)) {
+                conDestinos = true;
+                emitirLectura(d);
+            }
+        }
+        if (!conDestinos && !valor.esError()) {
+            GeneradorCodigo.emitir("imprimir", valor.lugar, "-", "-");
+        }
+    }
+
+    /**
+     * El ASTValor al que se reduce un operando sin operadores, o null si el
+     * operando calcula algo (lleva operador, signo o parentesis).
+     */
+    private ASTValor valorRaiz(NodoEasy n) {
+        while (n != null) {
+            if (n instanceof ASTValor) {
+                return (ASTValor) n;
+            }
+            if (!n.sinOperadores() || n.unario || n.negado || n.parentizada) {
+                return null;
+            }
+            n = n.hijo(0);   // en un acceso indexado, la base
+        }
+        return null;
+    }
+
+    private static boolean desciendeDe(Node n, Node ancestro) {
+        for (Node p = n; p != null; p = p.jjtGetParent()) {
+            if (p == ancestro) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Emite la lectura hacia un destino de LEER. Una constante o un nombre no
+     * declarado no se traducen: su error ya se reporto o se reportara.
+     *
+     * Un elemento de arreglo no tiene nombre propio donde 'leer' pueda
+     * escribir: se lee a un temporal y se guarda en la direccion que el
+     * recorrido ya calculo:
+     *
+     *     t  = desplazamiento
+     *     leer tX
+     *     V[t] = tX
+     */
+    private void emitirLectura(ASTValor hoja) {
+        Token t = hoja.tokenId;
+        Simbolo s = (t == null) ? null : TablaSimbolos.buscar(t.image);
+        // INDEFINIDO es la entrada que deja un nombre no declarado (SEM-10) para
+        // no repetir el error en cada uso: no es una variable de verdad.
+        if (s == null || "CONSTANTE".equals(s.categoria) || "INDEFINIDO".equals(s.categoria)) {
+            return;
+        }
+        String[] elemento = elementosDeLeer.get(hoja.jjtGetParent());
+        if (elemento != null) {
+            GeneradorCodigo.emitir("leer", "-", "-", elemento[1]);
+            GeneradorCodigo.emitir("[]=", s.nombreCodigo, elemento[0], elemento[1]);
+            return;
+        }
+        GeneradorCodigo.emitir("leer", "-", "-", s.nombreCodigo);
+    }
+
+    /**
+     * Recolecta los DESTINOS de un LEER: el identificador que esta en la raiz
+     * de cada operando de la expresion.
+     *
+     * Los identificadores que aparecen dentro de un indice NO son destinos: en
+     * LEER(M[K][0]) se escribe en el elemento de M, y K solo se lee para saber
+     * cual es. Por eso, al llegar a un acceso indexado, se mira solo su base y
+     * no se baja a los indices.
+     */
     private void recolectarIdentificadores(NodoEasy node, List<ASTValor> acumulador) {
         for (int i = 0; i < node.jjtGetNumChildren(); i++) {
             NodoEasy h = node.hijo(i);
@@ -1168,6 +1654,16 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 } else if (v.tokenId != null && v.tokenId.kind == EasyCompilerConstants.CONSTANTE) {
                     acumulador.add(v);
                 }
+            }
+            if (h instanceof ASTValorConArreglos && !h.parentizada && h.numIndices > 0
+                    && h.hijo(0) instanceof ASTValor) {
+                // Solo la base (hijo 0); los hijos 1 y 2 son los indices.
+                ASTValor v = (ASTValor) h.hijo(0);
+                if (v.tokenId != null && (v.tokenId.kind == EasyCompilerConstants.VARIABLE
+                        || v.tokenId.kind == EasyCompilerConstants.CONSTANTE)) {
+                    acumulador.add(v);
+                }
+                continue;
             }
             recolectarIdentificadores(h, acumulador);
         }
@@ -1214,13 +1710,29 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
             // codigo tendria el doble de saltos. Agrupadas quedan como una tabla
             // de decision, que es ademas lo que permitiria mas adelante
             // convertirlas en un salto indexado.
+            //
+            // Sin DEFECTO, cuando ninguna prueba acierta se cae directo en Lfin,
+            // que esta justo detras: ahi no se emite "ir_a Lfin" (seria un goto
+            // a la instruccion siguiente, Aho seccion 6.6.5).
             String etiquetaPrueba = GeneradorCodigo.nuevaEtiqueta();
-            String etiquetaFin = GeneradorCodigo.nuevaEtiqueta();
             String etiquetaDefecto = null;
+            List<Integer> haciaElFin = new ArrayList<Integer>();
             List<String> valoresDeCaso = new ArrayList<String>();
             List<String> etiquetasDeCaso = new ArrayList<String>();
 
-            GeneradorCodigo.emitir("ir_a", "-", "-", etiquetaPrueba);
+            // Un SEGUN sin ningun CASO ni DEFECTO (solo pasa con errores
+            // sintacticos) no tiene nada que traducir: se comprueba, pero no
+            // emite ni el salto a las pruebas ni las pruebas.
+            boolean conCuerpos = false;
+            for (int i = 0; i < node.jjtGetNumChildren(); i++) {
+                if (node.hijo(i) instanceof ASTValor || node.hijo(i) instanceof ASTSentencias) {
+                    conCuerpos = true;
+                }
+            }
+
+            if (conCuerpos) {
+                GeneradorCodigo.emitir("ir_a", "-", "-", etiquetaPrueba);
+            }
 
             List<String> yaVistos = new ArrayList<String>();
             boolean esperandoCuerpoDeCaso = false;
@@ -1231,37 +1743,46 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
                 }
                 if (h instanceof ASTValor) {
                     comprobarCaso((ASTValor) h, tipoControl, yaVistos);
-                    String etiquetaCaso = GeneradorCodigo.nuevaEtiqueta();
+                    // etiquetaAqui: dos CASO seguidos comparten la etiqueta.
+                    String etiquetaCaso = GeneradorCodigo.etiquetaAqui();
                     valoresDeCaso.add(((ASTValor) h).tokenId == null
                             ? "?" : ((ASTValor) h).tokenId.image);
                     etiquetasDeCaso.add(etiquetaCaso);
-                    GeneradorCodigo.etiquetar(etiquetaCaso);
                     esperandoCuerpoDeCaso = true;
                 } else if (h instanceof ASTSentencias) {
                     if (!esperandoCuerpoDeCaso) {
                         // Un bloque de sentencias sin CASO delante es el DEFECTO.
-                        etiquetaDefecto = GeneradorCodigo.nuevaEtiqueta();
-                        GeneradorCodigo.etiquetar(etiquetaDefecto);
+                        etiquetaDefecto = GeneradorCodigo.etiquetaAqui();
                     }
                     h.jjtAccept(this, data);
                     // El DETENER; es obligatorio al final de cada CASO, asi que
-                    // el salto de salida se emite siempre aqui.
-                    GeneradorCodigo.emitir("ir_a", "-", "-", etiquetaFin);
+                    // el salto de salida se emite siempre aqui. Hace falta
+                    // incluso en el ultimo: detras vienen las pruebas.
+                    haciaElFin.add(Integer.valueOf(
+                        GeneradorCodigo.emitir("ir_a", "-", "-", GeneradorCodigo.PENDIENTE)));
                     esperandoCuerpoDeCaso = false;
                 } else {
                     h.jjtAccept(this, data);
                 }
             }
 
+            if (!conCuerpos) {
+                return data;
+            }
             GeneradorCodigo.etiquetar(etiquetaPrueba);
-            String lugarControl = (ctrl == null) ? "?" : ctrl.image;
+            // Nombre de codigo, no lexema: la variable de control puede ser
+            // una que oculta a otra (ver Simbolo.nombreCodigo).
+            Simbolo simboloControl = (ctrl == null) ? null : TablaSimbolos.buscar(ctrl.image);
+            String lugarControl = (ctrl == null) ? "?"
+                : (simboloControl == null) ? ctrl.image : simboloControl.nombreCodigo;
             for (int i = 0; i < valoresDeCaso.size(); i++) {
                 GeneradorCodigo.emitir("si_igual", lugarControl,
                                        valoresDeCaso.get(i), etiquetasDeCaso.get(i));
             }
-            GeneradorCodigo.emitir("ir_a", "-", "-",
-                (etiquetaDefecto == null) ? etiquetaFin : etiquetaDefecto);
-            GeneradorCodigo.etiquetar(etiquetaFin);
+            if (etiquetaDefecto != null) {
+                GeneradorCodigo.emitir("ir_a", "-", "-", etiquetaDefecto);
+            }
+            GeneradorCodigo.completarAqui(haciaElFin);
             return data;
         } finally {
             pila.restaurar(marca);
@@ -1578,11 +2099,13 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
         }
         int antes = pila.tamano();
         hijo.jjtAccept(this, null);
-        if (pila.tamano() == antes + 1) {
-            return;
+        if (pila.tamano() != antes + 1) {
+            pila.restaurar(antes);
+            pila.apilar(Atributo.error(hijo.jjtGetFirstToken()));
         }
-        pila.restaurar(antes);
-        pila.apilar(Atributo.error(hijo.jjtGetFirstToken()));
+        if (operandosDeLeer.contains(hijo)) {
+            traducirOperandoDeLeer(hijo, pila.cima());
+        }
     }
 
     /** Como evaluarYApilar, pero devolviendo el operando en vez de dejarlo. */

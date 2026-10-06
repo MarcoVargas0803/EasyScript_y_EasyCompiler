@@ -93,27 +93,48 @@ public class GeneradorCodigo {
      * Emite una operacion binaria sobre dos operandos ya calculados y devuelve
      * el temporal donde queda el resultado.
      *
-     * Si el cubo de tipos decidio que el resultado es DEC pero uno de los
-     * operandos es ENT, se emite antes una conversion explicita. Aho lo llama
+     * Las conversiones se emiten antes, de forma explicita. Aho lo llama
      * insertar un operador de conversion (seccion 6.5.2): el codigo intermedio
      * no debe tener conversiones implicitas escondidas, porque quien lo traduzca
-     * despues no tiene forma de adivinarlas.
+     * despues no tiene forma de adivinarlas. Hay tres casos:
+     *
+     *   - el resultado es DEC y un operando es ENT:       ampliar ese operando
+     *   - comparacion entre ENT y DEC (resultado BOOL):   ampliar el ENT, porque
+     *     la comparacion se hace en DEC aunque el resultado no sea un numero
+     *   - concatenacion con un operando que no es TXT:    a_texto ese operando
      */
     public static String emitirBinaria(String operador, Atributo izq, Atributo der, Tipo resultado) {
         String a = izq.lugar;
         String b = der.lugar;
 
-        if (resultado == Tipo.DEC) {
+        boolean mixta = (izq.tipo == Tipo.ENT && der.tipo == Tipo.DEC)
+                     || (izq.tipo == Tipo.DEC && der.tipo == Tipo.ENT);
+        if (resultado == Tipo.DEC || (resultado == Tipo.BOOL && mixta)) {
             if (izq.tipo == Tipo.ENT) a = emitirConversion(a, Tipo.DEC);
             if (der.tipo == Tipo.ENT) b = emitirConversion(b, Tipo.DEC);
         }
 
         // La suma con texto no es una suma: es otra operacion, y el codigo
-        // intermedio debe decirlo con su propio operador.
-        String op = CuboSemantico.esConcatenacion(operador, izq.tipo, der.tipo) ? "concat" : operador;
+        // intermedio debe decirlo con su propio operador. Sus dos operandos
+        // tienen que ser texto ya: el numero que se pega a un mensaje se
+        // convierte antes, a la vista. (Un operando con ERROR no se convierte:
+        // ya hubo un error y este codigo no se va a usar.)
+        String op = operador;
+        if (CuboSemantico.esConcatenacion(operador, izq.tipo, der.tipo)) {
+            op = "concat";
+            if (izq.tipo != Tipo.TXT && !izq.esError()) a = emitirATexto(a);
+            if (der.tipo != Tipo.TXT && !der.esError()) b = emitirATexto(b);
+        }
 
         String t = nuevoTemporal(resultado);
         emitir(op, a, b, t);
+        return t;
+    }
+
+    /** Emite la conversion de un valor cualquiera a TXT y devuelve el temporal. */
+    public static String emitirATexto(String origen) {
+        String t = nuevoTemporal(Tipo.TXT);
+        emitir("a_texto", origen, "-", t);
         return t;
     }
 
@@ -136,11 +157,37 @@ public class GeneradorCodigo {
      * origen ENT.
      */
     public static void emitirAsignacion(String destino, Atributo origen, Tipo tipoDestino) {
-        String valor = origen.lugar;
+        emitir("=", valorPara(origen, tipoDestino), "-", destino);
+    }
+
+    /**
+     * Escritura en un elemento: base[desplazamiento] = valor, con la misma
+     * conversion que una asignacion corriente. Que el destino sea un elemento
+     * no cambia su tipo: un arreglo DEC guarda DEC aunque se le de un 1.
+     */
+    public static void emitirEscrituraIndexada(String base, String desplazamiento,
+                                               Atributo origen, Tipo tipoElemento) {
+        emitir("[]=", base, desplazamiento, valorPara(origen, tipoElemento));
+    }
+
+    /** El lugar del origen, ampliado antes si el destino es DEC y el origen ENT. */
+    private static String valorPara(Atributo origen, Tipo tipoDestino) {
         if (tipoDestino == Tipo.DEC && origen.tipo == Tipo.ENT) {
-            valor = emitirConversion(valor, Tipo.DEC);
+            return emitirConversion(origen.lugar, Tipo.DEC);
         }
-        emitir("=", valor, "-", destino);
+        return origen.lugar;
+    }
+
+    /**
+     * La constante 1 que suma o resta un X++ / X--, escrita en el tipo de X.
+     *
+     * X++ sobre un DEC es X = X + 1.0: con un 1 entero la suma mezclaria tipos
+     * sin conversion, justo lo que emitirBinaria evita en el resto del codigo.
+     * Como el literal se conoce al compilar, se escribe ya en DEC en vez de
+     * emitir un ampliar en cada vuelta.
+     */
+    public static String unoDelTipo(Tipo tipo) {
+        return (tipo == Tipo.DEC) ? "1.0" : "1";
     }
 
     /**
@@ -216,15 +263,81 @@ public class GeneradorCodigo {
     }
 
     /**
-     * Crea una etiqueta y la coloca en el punto actual del codigo.
+     * Devuelve una etiqueta colocada en el punto actual del codigo.
      *
      * Es el marcador que Aho escribe como M en sus reglas: sirve para capturar
      * "donde estamos ahora" y poder apuntar saltos a este sitio.
+     *
+     * Si la ultima instruccion ya es una etiqueta, este punto ya tiene nombre y
+     * se reutiliza: dos etiquetas seguidas marcan el mismo sitio, y la segunda
+     * solo anade ruido (por ejemplo, el final de un SI anidado que coincide con
+     * el final del SI de fuera).
      */
     public static String etiquetaAqui() {
+        if (!codigo.isEmpty()) {
+            Cuadruplo ultimo = codigo.get(codigo.size() - 1);
+            if ("etiqueta".equals(ultimo.operador)) {
+                return ultimo.resultado;
+            }
+        }
         String e = nuevaEtiqueta();
         etiquetar(e);
         return e;
+    }
+
+    /**
+     * Rellena la lista con el punto actual, creando la etiqueta SOLO si hay
+     * algun salto que la necesite.
+     *
+     * Con el codigo de paso (Aho, seccion 6.6.5) muchas listas quedan vacias:
+     * el camino que "cae" hacia la instruccion siguiente no salta, y una
+     * etiqueta a la que nadie salta no sirve de nada.
+     */
+    public static void completarAqui(List<Integer> lista) {
+        if (lista == null || lista.isEmpty()) {
+            return;
+        }
+        completar(lista, etiquetaAqui());
+    }
+
+    /**
+     * Comparacion y salto en UNA instruccion (Aho, figura 6.37): en vez de
+     *
+     *     t1 = A > 1
+     *     si t1 ir_a L
+     *
+     * se emite  si A > 1 ir_a L.  El destino queda pendiente.
+     *
+     * Con siCierta = false el salto se da cuando la comparacion es FALSA, y
+     * para eso se usa el relacional complementario: saltar si no es A > 1 es
+     * saltar si A <= 1. Es lo que permite que el cuerpo de un SI quede justo
+     * despues de la condicion, sin un salto que lo esquive.
+     *
+     * Las conversiones son las mismas que en emitirBinaria: si se compara un
+     * ENT con un DEC, el ENT se amplia antes.
+     */
+    public static int emitirSaltoRelacional(String relop, Atributo izq, Atributo der, boolean siCierta) {
+        String a = izq.lugar;
+        String b = der.lugar;
+        boolean mixta = (izq.tipo == Tipo.ENT && der.tipo == Tipo.DEC)
+                     || (izq.tipo == Tipo.DEC && der.tipo == Tipo.ENT);
+        if (mixta) {
+            if (izq.tipo == Tipo.ENT) a = emitirConversion(a, Tipo.DEC);
+            if (der.tipo == Tipo.ENT) b = emitirConversion(b, Tipo.DEC);
+        }
+        String op = siCierta ? relop : complemento(relop);
+        return emitir("si_" + op, a, b, PENDIENTE);
+    }
+
+    /** El relacional que es cierto exactamente cuando el dado es falso. */
+    public static String complemento(String relop) {
+        if (">".equals(relop))  return "<=";
+        if ("<=".equals(relop)) return ">";
+        if ("<".equals(relop))  return ">=";
+        if (">=".equals(relop)) return "<";
+        if ("==".equals(relop)) return "!=";
+        if ("!=".equals(relop)) return "==";
+        return relop;
     }
 
     // ------------------------------------------------------------------
@@ -299,6 +412,7 @@ public class GeneradorCodigo {
         if ("si_igual".equals(op)) return "si " + a1 + " == " + a2 + " ir_a " + res;
         if ("=".equals(op))        return res + " = " + a1;
         if ("ampliar".equals(op))  return res + " = (DEC) " + a1;
+        if ("a_texto".equals(op))  return res + " = (TXT) " + a1;
         if ("=[]".equals(op))      return res + " = " + a1 + "[" + a2 + "]";
         if ("[]=".equals(op))      return a1 + "[" + a2 + "] = " + res;
         if ("imprimir".equals(op)) return "imprimir " + a1;

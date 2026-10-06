@@ -42,12 +42,13 @@ public class CuboSemantico {
     static {
         // ---- Aritmeticos entre numeros -------------------------------------
         // ENT con ENT da ENT; en cuanto aparece un DEC el resultado es DEC.
+        // Vale para + - * /; la potencia tiene su propia regla, mas abajo.
         //
         // Ojo con la division: ENT entre ENT da ENT (division entera). No es un
         // descuido. El archivo finalprueba.txt declara An de tipo ENT y le
         // asigna ((B*N)*(N+1))/2; si la division diera DEC, ese programa (que
         // hoy compila limpio) empezaria a dar error de tipos.
-        String[] aritmeticos = { "+", "-", "*", "/", "**" };
+        String[] aritmeticos = { "+", "-", "*", "/" };
         for (int k = 0; k < aritmeticos.length; k++) {
             for (int i = 0; i < NUMEROS.length; i++) {
                 for (int j = 0; j < NUMEROS.length; j++) {
@@ -56,6 +57,19 @@ public class CuboSemantico {
                     Tipo r = (a == Tipo.DEC || b == Tipo.DEC) ? Tipo.DEC : Tipo.ENT;
                     poner(BINARIOS, aritmeticos[k], a, b, r);
                 }
+            }
+        }
+
+        // ---- Potencia: SIEMPRE da DEC ---------------------------------------
+        // La potencia es la funcion matematica, y en general no es entera: con
+        // un exponente negativo 2 ** -3 vale 0.125. Si ENT ** ENT diera ENT,
+        // ese valor se truncaria a 0 sin avisar, que es justo la perdida de
+        // decimales que la politica de conversiones prohibe. Por eso el
+        // resultado es DEC aunque los dos operandos sean enteros, y guardar una
+        // potencia en una variable ENT es SEM-04 como cualquier otro DEC.
+        for (int i = 0; i < NUMEROS.length; i++) {
+            for (int j = 0; j < NUMEROS.length; j++) {
+                poner(BINARIOS, "**", NUMEROS[i], NUMEROS[j], Tipo.DEC);
             }
         }
 

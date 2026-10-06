@@ -18,7 +18,7 @@ INICIO{
     DEC Mezcla = Entero + Decimal;
     ENT Division = Entero / 2;
     ENT Residuo = Entero % 2;
-    ENT Potencia = Entero ** 2;
+    DEC Potencia = Entero ** 2;     // la potencia siempre da DEC
     ENT Negativo = -Entero;
 
     // La suma con un operando TXT concatena

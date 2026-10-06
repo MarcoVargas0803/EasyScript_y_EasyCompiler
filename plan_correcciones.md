@@ -236,7 +236,7 @@ bloque de errores léxicos.
 1. `javacc` debe reportar **0 errores y exactamente 7 advertencias** de *choice
    conflict* (`+`, `*`, `**`, `[`, `[`, `>`, `&&`). Una advertencia nueva significa
    que se alteró la gramática sin querer.
-2. Los conteos de errores **léxicos y sintácticos** de los 26 archivos de prueba
+2. Los conteos de errores **léxicos y sintácticos** de los 27 archivos de prueba
    deben quedar **idénticos**. Los semánticos y las advertencias solo pueden cambiar
    cuando el punto que se está corrigiendo lo busque a propósito.
 
@@ -270,6 +270,7 @@ Archivos de prueba y su salida esperada **después de la fase semántica**:
 | `traduccion.txt` | 0 | 0 | 0 | 0 |
 | `precedencia.txt` | 0 | 0 | 0 | 0 |
 | `cortocircuito.txt` | 0 | 0 | 0 | 0 |
+| `muestra.txt` | 0 | 0 | 0 | 0 |
 
 Los errores semánticos de `codigo3.txt`, `codigoSI.txt` y `codigoSimulación.txt`
 aparecieron con esta fase y son legítimos: esos programas usan variables no

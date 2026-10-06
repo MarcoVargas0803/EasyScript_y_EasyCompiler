@@ -1,0 +1,51 @@
+// intermedio_escalares.txt
+//
+// Programa correcto que ejercita cuatro casos del codigo intermedio donde un
+// nombre NO basta para saber donde vive el dato. No tiene errores; da una sola
+// advertencia (ADV-03), que es justamente el caso d).
+//
+//   a) V[i]++ y V[i]--: hay que leer el elemento, sumarle o restarle 1 y
+//      guardarlo en la misma direccion.
+//   b) LEER(V[i]): se lee a un temporal y se guarda en el elemento.
+//   c) LEER(M[K][1]): solo el elemento es destino; K solo se lee para saber
+//      cual es, y conserva su valor.
+//   d) Una variable que oculta a otra: en el codigo son dos nombres distintos
+//      (X y X$2), asi que la de dentro no pisa a la de fuera.
+//
+// Para ver el codigo:      .\build.ps1 -Ejecutar intermedio_escalares.txt -Codigo
+//
+// Salida esperada al ejecutar el codigo (VerificadorIntermedio, cuya entrada
+// fija entrega 3 en el primer LEER y 5 en el segundo):
+//
+//   a: 21 29 4
+//   b: 3
+//   c: 1 5
+//   2
+//   1
+
+INICIO{
+    // a) incremento y decremento de elementos
+    ARREGLO ENT V[3] = {10, 20, 30};
+    V[1]++;
+    V[2]--;
+    MATRIZ ENT M[2][2] = {{1, 2}, {3, 4}};
+    M[1][0]++;
+    IMPRIMIR("a: " + V[1] + " " + V[2] + " " + M[1][0]);
+
+    // b) LEER sobre un elemento de arreglo
+    LEER(V[0]);
+    IMPRIMIR("b: " + V[0]);
+
+    // c) LEER con un indice variable: K no se escribe
+    ENT K = 1;
+    LEER(M[K][1]);
+    IMPRIMIR("c: " + K + " " + M[1][1]);
+
+    // d) ocultamiento: imprime 2 y luego 1
+    ENT X = 1;
+    SI (X == 1) {
+        ENT X = 2;
+        IMPRIMIR(X);
+    }
+    IMPRIMIR(X);
+}FIN

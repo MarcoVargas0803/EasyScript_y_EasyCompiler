@@ -3,6 +3,10 @@
 // Comprueba la precedencia y la asociatividad del exponente y del menos unario.
 // Es un programa correcto: no debe producir errores.
 //
+// La potencia SIEMPRE da DEC (2 ** -3 vale 0.125, no es entera), por eso todas
+// las variables que reciben una potencia son DEC. Como los operandos escritos
+// son ENT, antes de cada potencia aparece un "ampliar" (ENT -> DEC).
+//
 // Lo que se verifica no se ve en la consola sino en el codigo generado:
 //
 //     .\build.ps1 -Ejecutar precedencia.txt -Codigo
@@ -10,19 +14,21 @@
 // Resultado esperado, instruccion por instruccion:
 //
 //   2 ** 3 ** 2   ->   t = 3 ** 2      el exponente asocia a la DERECHA,
-//                      t' = 2 ** t     asi que vale 512 y no 64
+//                      t' = 2 ** t     asi que vale 512.0 y no 64.0
 //
 //   -2 ** 2       ->   t = 2 ** 2      el signo se aplica al RESULTADO,
-//                      t' = -t         asi que vale -4 y no 4
+//                      t' = -t         asi que vale -4.0 y no 4.0
 //
 //   2 ** -3       ->   t = -3          el exponente si puede llevar signo
-//                      t' = 2 ** t
+//                      t' = 2 ** t     y el resultado tiene decimales: 0.125
+//
+// Al ejecutarlo imprime:  resultados: 512.0-4.00.125-512.0
 
 INICIO{
-    ENT Potencia_anidada = 2 ** 3 ** 2;
-    ENT Base_negativa = -2 ** 2;
+    DEC Potencia_anidada = 2 ** 3 ** 2;
+    DEC Base_negativa = -2 ** 2;
     DEC Exponente_negativo = 2 ** -3;
-    ENT Negado = -Potencia_anidada;
+    DEC Negado = -Potencia_anidada;
 
     IMPRIMIR("resultados: " + Potencia_anidada + Base_negativa
              + Exponente_negativo + Negado);
