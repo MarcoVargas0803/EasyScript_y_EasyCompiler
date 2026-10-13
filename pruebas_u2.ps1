@@ -3,7 +3,8 @@
 # Captura, por cada *.txt del proyecto, tres cosas que no deben cambiar sin
 # querer mientras se modifica el generador de codigo:
 #
-#   <base>.consola.txt     lo que imprime  java Main <archivo>  (sin banderas)
+#   <base>.consola.txt     lo que imprime  java Main <archivo> --arbol-sintactico --tabla-simbolos
+#                          (las dos banderas reproducen la salida que antes era la de por defecto)
 #   <base>.cuadruplos.txt  el codigo de tres direcciones generado
 #   <base>.traza.txt       lo que HACE ese codigo al ejecutarlo en el simulador
 #
@@ -101,7 +102,7 @@ function Capturar([string] $dir) {
     Write-Host ("Capturando la consola de Main para " + $archivos.Count + " archivos...") -ForegroundColor Cyan
     foreach ($f in $archivos) {
         $destino = Join-Path $dir ($f.BaseName + ".consola.txt")
-        Guardar-SalidaJava ('-Dfile.encoding=UTF-8 -cp out Main "' + $f.Name + '"') $destino | Out-Null
+        Guardar-SalidaJava ('-Dfile.encoding=UTF-8 -cp out Main "' + $f.Name + '" --arbol-sintactico --tabla-simbolos') $destino | Out-Null
     }
 
     Write-Host "Ejecutando VerificadorIntermedio..." -ForegroundColor Cyan

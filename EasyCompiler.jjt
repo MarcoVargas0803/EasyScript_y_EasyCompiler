@@ -507,7 +507,7 @@ void Valor() :
 // JERARQUIA DE EXPRESIONES
 //
 // Cada nivel es una produccion aparte para fijar la precedencia: Nivel1 suma y
-// resta, Nivel2 multiplica, Nivel3 eleva, Nivel4 aplica el menos unario.
+// resta, Nivel2 multiplica, Nivel3 aplica el menos unario, Nivel4 eleva.
 //
 // Las acciones { } de abajo NO comprueban nada. Solo anotan en el nodo el
 // operador que el parser acaba de leer, y hacen falta por una razon concreta:
@@ -517,6 +517,23 @@ void Valor() :
 // expresiones de verdad (tema 1.1) ni con que comprobar tipos (tema 1.3).
 //
 // Quien decide sigue siendo AnalizadorSemantico, en su pasada aparte.
+//
+// LOS LOOKAHEAD(1) DE ESTA SECCION Y DE LAS CONDICIONES
+//
+// JavaCC avisaria de un "choice conflict" en 7 sitios (+, *, **, [, [, >, &&).
+// No son errores: son ambiguedades que la gramatica TIENE y que se resuelven
+// siempre igual, tomando el token para la construccion mas interna. La mayoria
+// las crean las ramas vacias de la recuperacion por insercion: en "V[I * 2"
+// sin ']', el '*' podria seguir dentro del indice o pertenecer ya a la
+// expresion de fuera, y un token no basta para saberlo. Seguir dentro es lo
+// correcto, y es lo que JavaCC hace por omision.
+//
+// LOOKAHEAD(1) pide exactamente esa misma decision (mirar un token y entrar si
+// encaja), pero escrita a proposito en vez de deducida, y JavaCC no avisa
+// donde el lookahead es explicito. El parser generado es el mismo: no cambia
+// ni la recuperacion ni ningun error. Un LOOKAHEAD mayor si la cambiaria.
+// Es la misma solucion que da la documentacion de JavaCC para el "else
+// colgante".
 // ==========================================
 void ExpresionAritmetica() :
 {}
@@ -530,6 +547,8 @@ void ExpresionNivel1() :
 {
     ExpresionNivel2()
     (
+        // Voraz: el '+' se queda en este nivel (ver LOOKAHEAD(1) arriba).
+        LOOKAHEAD(1)
         ( op = <SUMA> | op = <RESTA> )
         { jjtThis.agregarOperador(op); }
         ExpresionNivel2()
@@ -542,6 +561,7 @@ void ExpresionNivel2() :
 {
     ExpresionNivel3()
     (
+        LOOKAHEAD(1)
         ( op = <MULTIPLICACION> | op = <DIVISION> | op = <MODULO> )
         { jjtThis.agregarOperador(op); }
         ExpresionNivel3()
@@ -577,6 +597,7 @@ void ExpresionNivel4() :
 {
     ValorConArreglos()
     (
+        LOOKAHEAD(1)
         op = <EXPONENTE>
         { jjtThis.agregarOperador(op); }
         ExpresionNivel3()
@@ -606,7 +627,8 @@ void ValorConArreglos() :
         Valor()
         // Soporte opcional para acceder a índices de arreglos o matrices
         (
-            <ABRIR_CORCHETE> ExpresionAritmetica() 
+            LOOKAHEAD(1)
+            <ABRIR_CORCHETE> ExpresionAritmetica()
             (
                 <CERRAR_CORCHETE>
               | {
@@ -619,7 +641,8 @@ void ValorConArreglos() :
             // DECORACION: cuantos indices traia el acceso. 1 = arreglo, 2 = matriz.
             // Es lo unico que permite despues distinguir "A[0]" de "A" a secas.
             { jjtThis.numIndices = 1; }
-            ( <ABRIR_CORCHETE> ExpresionAritmetica() 
+            ( LOOKAHEAD(1)
+              <ABRIR_CORCHETE> ExpresionAritmetica()
               (
                   <CERRAR_CORCHETE>
                 | {
@@ -967,7 +990,9 @@ void CondicionSimple() :
     ExpresionAritmetica()
 
     // 3. Opcional: Operador relacional y segundo valor (Ej. > 5)
-    ( OperadorRelacional() ExpresionAritmetica() )?
+    //    LOOKAHEAD(1): voraz a proposito (ver la nota de la jerarquia de
+    //    expresiones). El '>' tambien podria venir despues de un ')' que falta.
+    ( LOOKAHEAD(1) OperadorRelacional() ExpresionAritmetica() )?
 }
 
 // ==========================================
@@ -981,6 +1006,9 @@ void Condicion() :
 
     // Cero o más veces, puede estar unida a otra por medio de AND / OR
     (
+        // LOOKAHEAD(1): voraz a proposito (ver la nota de la jerarquia de
+        // expresiones). El '&&' tambien podria venir despues de un ')' que falta.
+        LOOKAHEAD(1)
         // Leemos el operador (&&, ||) o el error de escribir solo (&, |)
         (
             op = <Y_LOGICO>

@@ -9,16 +9,20 @@
 #
 # Uso:
 #   .\build.ps1                      Compila
-#   .\build.ps1 -Ejecutar codigo1.txt          Compila y analiza ese archivo
-#   .\build.ps1 -Ejecutar codigo1.txt -Completo   Ademas muestra la derivacion sin colapsar
+#   .\build.ps1 -Ejecutar codigo1.txt             Compila y analiza ese archivo (solo errores)
+#   .\build.ps1 -Ejecutar codigo1.txt -Arbol      Ademas muestra el arbol sintactico
+#   .\build.ps1 -Ejecutar codigo1.txt -Completo   Ademas muestra el arbol con la derivacion sin colapsar
+#   .\build.ps1 -Ejecutar codigo1.txt -Tabla      Ademas muestra la tabla de simbolos
 #   .\build.ps1 -Ejecutar codigo1.txt -Codigo     Ademas muestra el codigo de tres direcciones
 #
-# El codigo intermedio se genera siempre, pero solo se imprime con -Codigo: la
-# salida normal se queda con el arbol, la tabla de simbolos y los errores.
+# Los switches se combinan. El arbol, la tabla y el codigo intermedio se generan
+# siempre, pero solo se imprimen si se piden: la salida normal son los errores.
 
 param(
     [string] $Ejecutar = "",
+    [switch] $Arbol,
     [switch] $Completo,
+    [switch] $Tabla,
     [switch] $Codigo
 )
 
@@ -69,8 +73,9 @@ Write-Host "[1/3] jjtree  EasyCompiler.jjt -> EasyCompiler.jj" -ForegroundColor 
 if ($LASTEXITCODE -ne 0) { Write-Error "jjtree fallo." }
 
 Write-Host "[2/3] javacc  EasyCompiler.jj -> *.java" -ForegroundColor Cyan
-# Las 7 advertencias de 'Choice conflict' son esperadas: son el precio de la
-# recuperacion por insercion. Ver plan_correcciones.md, punto 12.
+# No debe salir ninguna advertencia. Las 7 de 'Choice conflict' que habia se
+# resolvieron con LOOKAHEAD(1) en EasyCompiler.jjt (ver la jerarquia de
+# expresiones); si vuelve a salir una, la gramatica cambio sin querer.
 & $java -cp $JAVACC javacc EasyCompiler.jj
 if ($LASTEXITCODE -ne 0) { Write-Error "javacc fallo." }
 
@@ -83,7 +88,9 @@ Write-Host "Compilacion terminada." -ForegroundColor Green
 if ($Ejecutar -ne "") {
     Write-Host ""
     $banderas = @()
-    if ($Completo) { $banderas += "--arbol-completo" }
+    if ($Completo) { $banderas += "--arbol-sintactico-completo" }
+    elseif ($Arbol) { $banderas += "--arbol-sintactico" }
+    if ($Tabla)    { $banderas += "--tabla-simbolos" }
     if ($Codigo)   { $banderas += "--codigo-intermedio" }
     & $java "-Dfile.encoding=UTF-8" -cp out Main $Ejecutar @banderas
 } else {

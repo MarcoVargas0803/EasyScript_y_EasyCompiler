@@ -2,16 +2,31 @@
 
 Compilador del lenguaje **EasyScript**. Implementa las fases de **análisis
 léxico**, **análisis sintáctico** y **análisis semántico**, incluido el **esquema
-de traducción** a código de tres direcciones. Imprime el **árbol sintáctico**
-decorado con sus operadores y tipos, la **tabla de símbolos** con las direcciones
-de memoria de cada dato, y un reporte de errores de las tres fases.
+de traducción** a código de tres direcciones. Por defecto imprime solo el
+**reporte de errores y advertencias** de las tres fases.
 
-El código intermedio se genera siempre pero no se imprime, porque esa parte
-todavía es preliminar. Para verlo:
+El **árbol sintáctico** (decorado con sus operadores y tipos), la **tabla de
+símbolos** (con las direcciones de memoria de cada dato) y el **código intermedio**
+(cuádruplos y temporales) se construyen siempre, pero solo se imprimen si se piden
+con una bandera:
 
-```powershell
-.\build.ps1 -Ejecutar traduccion.txt -Codigo
+| Bandera | Muestra |
+|---|---|
+| *(ninguna)* | solo errores y advertencias |
+| `--arbol-sintactico` | el árbol sintáctico, colapsado |
+| `--arbol-sintactico-completo` | el árbol con la derivación literal, sin colapsar |
+| `--tabla-simbolos` | la tabla de símbolos |
+| `--codigo-intermedio` | los cuádruplos y la dirección de cada temporal |
+
+Las banderas van después del archivo y se pueden combinar:
+
+```bash
+java Main traduccion.txt --arbol-sintactico --tabla-simbolos --codigo-intermedio
 ```
+
+Cómo se genera, por qué se eligieron los cuádruplos y el mismo programa escrito en
+las demás notaciones del temario (prefija, postfija, polaca, código P, triplos):
+**`generacion_ci.md`**.
 
 Dos reglas del lenguaje que conviene saber antes de escribir código:
 
@@ -116,12 +131,12 @@ Qué esperar de cada paso:
 | Paso | Salida correcta |
 |---|---|
 | 1 | `Annotated grammar generated successfully in .\EasyCompiler.jj` |
-| 2 | `Parser generated with 0 errors and 7 warnings.` |
+| 2 | `Parser generated successfully.` (sin advertencias) |
 | 3 | **nada**: si `javac` no dice nada, compiló bien |
-| 4 | el árbol, la tabla de símbolos y el reporte de errores |
+| 4 | el reporte de errores (árbol y tabla, con sus banderas) |
 
-Las **7 advertencias del paso 2 son esperadas**, no un problema. Si salen más o
-menos de 7, la gramática cambió sin querer.
+El paso 2 no debe dar **ninguna advertencia**. Si aparece un `Choice conflict`,
+la gramática cambió sin querer (ver la nota sobre las advertencias de `javacc`).
 
 El `-encoding UTF-8` del paso 3 no es opcional: el código tiene acentos y sin él
 `javac` falla en un equipo configurado en español.
@@ -158,8 +173,10 @@ ruta del ejecutable está en una variable o lleva espacios.
 
 ```powershell
 .\build.ps1                                      # solo compila
-.\build.ps1 -Ejecutar muestra.txt                # compila y analiza
-.\build.ps1 -Ejecutar muestra.txt -Completo      # + derivación sin colapsar
+.\build.ps1 -Ejecutar muestra.txt                # compila y analiza (solo errores)
+.\build.ps1 -Ejecutar muestra.txt -Arbol         # + árbol sintáctico
+.\build.ps1 -Ejecutar muestra.txt -Completo      # + árbol con la derivación sin colapsar
+.\build.ps1 -Ejecutar muestra.txt -Tabla         # + tabla de símbolos
 .\build.ps1 -Ejecutar muestra.txt -Codigo        # + código de tres direcciones
 ```
 
@@ -188,7 +205,8 @@ EasyCompiler.jjt  --jjtree-->  EasyCompiler.jj  --javacc-->  *.java  --javac--> 
 
 `muestra.txt` es un programa pequeño y correcto, pensado para comprobar que la
 compilación quedó bien: tiene una declaración, un ciclo, un condicional y salidas,
-así que el árbol, la tabla de símbolos y el código intermedio salen con contenido.
+así que el árbol, la tabla de símbolos y el código intermedio salen con contenido
+cuando se piden con sus banderas.
 
 ```
 INICIO{
@@ -214,17 +232,17 @@ Si sale eso, las cuatro herramientas están bien encadenadas.
 ## Variante: ver la derivación completa
 
 ```bash
-java Main <archivo> --arbol-completo
+java Main <archivo> --arbol-sintactico-completo
 ```
 
-Por defecto el árbol se imprime **colapsado**: se omiten los eslabones intermedios de
-la cascada de precedencia que no aportan nada, para que el árbol sea legible. Con
-`--arbol-completo` se imprime la **derivación literal** de la gramática, mostrando
-todos los no terminales que se atraviesan.
+Con `--arbol-sintactico` el árbol se imprime **colapsado**: se omiten los eslabones
+intermedios de la cascada de precedencia que no aportan nada, para que el árbol sea
+legible. Con `--arbol-sintactico-completo` se imprime la **derivación literal** de la
+gramática, mostrando todos los no terminales que se atraviesan.
 
 La diferencia, para la sentencia `ENT A = 5;`:
 
-**Colapsado (por defecto)**
+**Con `--arbol-sintactico` (colapsado)**
 
 ```
 DeclaracionVariable
@@ -238,7 +256,7 @@ DeclaracionVariable
    └─ <PUNTO_COMA: ";">
 ```
 
-**Con `--arbol-completo`**
+**Con `--arbol-sintactico-completo`**
 
 ```
 DeclaracionVariable
@@ -279,7 +297,19 @@ javac -encoding UTF-8 *.java
 java Main "Hello world.txt"
 ```
 
-Y produce:
+Y produce solo el resultado:
+
+```
+>> Analisis completado.
+>> ¡Excelente! No se encontraron errores en el código fuente.
+  (usa --arbol-sintactico, --tabla-simbolos o --codigo-intermedio para ver mas detalle)
+```
+
+Para ver además el árbol, se vuelve a ejecutar con la bandera:
+
+```bash
+java Main "Hello world.txt" --arbol-sintactico
+```
 
 ```
 >> Analisis completado.
@@ -302,7 +332,7 @@ Programa
 ├─ <CERRAR_LLAVE: "}">
 ├─ <FIN_PROGRAMA: "FIN">
 └─ <EOF>
-  (usa --arbol-completo para ver la derivacion sin colapsar)
+  (usa --arbol-sintactico-completo para ver la derivacion sin colapsar)
 
 >> ¡Excelente! No se encontraron errores en el código fuente.
 ```
@@ -312,10 +342,14 @@ con tipo, línea, columna, detalle y un consejo para cada uno.
 
 ## Nota sobre las advertencias de `javacc`
 
-> Durante el paso de `javacc` aparecen **7 advertencias de `Choice conflict`**.
-> Son esperadas: son consecuencia de la recuperación de errores por inserción.
-> Ver `plan_correcciones.md`, punto 12. Si el número cambia, la gramática se
-> modificó sin querer.
+> `javacc` compila la gramática **sin advertencias**. Antes daba 7 de `Choice
+> conflict` (`+`, `*`, `**`, `[`, `[`, `>`, `&&`): ambigüedades reales, casi todas
+> creadas por la recuperación de errores por inserción, que JavaCC resolvía de forma
+> voraz, que es la correcta. Ahora esa decisión está escrita en la gramática con
+> `LOOKAHEAD(1)` en esos 7 puntos; el parser generado es idéntico al de antes.
+> Ver el comentario en `EasyCompiler.jjt`, al inicio de la jerarquía de
+> expresiones. Si vuelve a aparecer una advertencia, la gramática se modificó sin
+> querer.
 
 Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
 

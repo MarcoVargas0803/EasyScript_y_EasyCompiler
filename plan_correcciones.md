@@ -213,8 +213,15 @@ bloque de errores léxicos.
 - **Las 7 advertencias de *choice conflict*** (`+`, `*`, `**`, `[`, `[`, `>`, `&&`)
   tienen todas la misma causa: las ramas vacías de la recuperación por inserción
   contaminan los conjuntos FOLLOW. JavaCC resuelve de forma voraz y la conducta es la
-  correcta. **No hay que "arreglarlas" metiendo `LOOKAHEAD`: eso rompería la
-  recuperación.** Documentarlas como precio consciente del diseño.
+  correcta. **No hay que "arreglarlas" con un `LOOKAHEAD` mayor que 1: eso sí
+  rompería la recuperación.**
+  - **Resuelto (Unidad 2):** se escribió `LOOKAHEAD(1)` en los 7 puntos. Pide la
+    misma decisión voraz que JavaCC ya tomaba, y JavaCC no avisa donde el lookahead
+    es explícito. Se comprobó que el parser generado es idéntico (sin contar
+    comentarios) y que los 30 programas de prueba dan la misma salida.
+  - Matiz a la causa: el `+` tiene además una segunda fuente que no es la
+    recuperación. `ExpresionConcatenada` repite el bucle `( "+" ... )*` que
+    `ExpresionNivel1` ya consume entero, así que ese bucle nunca se ejecuta.
 
 ---
 
@@ -233,9 +240,10 @@ bloque de errores léxicos.
 
 **Criterio de aceptación al tocar la gramática:**
 
-1. `javacc` debe reportar **0 errores y exactamente 7 advertencias** de *choice
-   conflict* (`+`, `*`, `**`, `[`, `[`, `>`, `&&`). Una advertencia nueva significa
-   que se alteró la gramática sin querer.
+1. `javacc` debe reportar **0 errores y 0 advertencias** (`Parser generated
+   successfully.`). Las 7 de *choice conflict* se resolvieron con `LOOKAHEAD(1)`
+   (ver el punto 12); una advertencia nueva significa que se alteró la gramática sin
+   querer.
 2. Los conteos de errores **léxicos y sintácticos** de los 27 archivos de prueba
    deben quedar **idénticos**. Los semánticos y las advertencias solo pueden cambiar
    cuando el punto que se está corrigiendo lo busque a propósito.

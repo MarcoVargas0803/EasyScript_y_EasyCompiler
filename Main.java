@@ -14,26 +14,39 @@ public class Main {
             // Verificamos que al ejecutar envíen el nombre del archivo
             if (args.length == 0) {
                 System.out.println("Error: Debes especificar un archivo. Ejemplo: java Main codigo1.txt");
-                System.out.println("Opciones: --arbol-completo   Muestra la derivación literal, sin colapsar");
-                System.out.println("                             los niveles intermedios de las expresiones.");
-                System.out.println("          --codigo-intermedio Muestra el codigo de tres direcciones que genera");
-                System.out.println("                             el esquema de traduccion.");
+                System.out.println("Sin opciones solo se muestran los errores y advertencias.");
+                System.out.println("Opciones: --arbol-sintactico           Muestra el arbol sintactico (colapsado).");
+                System.out.println("          --arbol-sintactico-completo  Muestra el arbol con la derivacion literal,");
+                System.out.println("                                       sin colapsar los niveles de las expresiones.");
+                System.out.println("          --tabla-simbolos             Muestra la tabla de simbolos.");
+                System.out.println("          --codigo-intermedio          Muestra el codigo de tres direcciones que");
+                System.out.println("                                       genera el esquema de traduccion.");
                 return;
             }
 
-            // La bandera puede venir en cualquier posición, así que args[0] sigue
-            // siendo el nombre del archivo.
+            // Las banderas pueden venir en cualquier posición después del
+            // archivo, así que args[0] sigue siendo el nombre del archivo.
+            //
+            // El arbol, la tabla y el codigo intermedio se construyen SIEMPRE
+            // (el analisis semantico los necesita), pero solo se imprimen si se
+            // piden. Por defecto la consola muestra unicamente los errores.
+            boolean mostrarArbol = false;
             boolean arbolCompleto = false;
-            // El codigo intermedio se genera SIEMPRE, pero no se imprime salvo
-            // que se pida. La consola se queda con sus tres bloques de siempre:
-            // arbol, tabla de simbolos y errores.
+            boolean mostrarTabla = false;
             boolean mostrarCodigo = false;
-            for (String arg : args) {
-                if (arg.equals("--arbol-completo")) {
+            for (int i = 1; i < args.length; i++) {
+                String arg = args[i];
+                if (arg.equals("--arbol-sintactico")) {
+                    mostrarArbol = true;
+                } else if (arg.equals("--arbol-sintactico-completo")) {
+                    mostrarArbol = true;
                     arbolCompleto = true;
-                }
-                if (arg.equals("--codigo-intermedio")) {
+                } else if (arg.equals("--tabla-simbolos")) {
+                    mostrarTabla = true;
+                } else if (arg.equals("--codigo-intermedio")) {
                     mostrarCodigo = true;
+                } else if (arg.startsWith("--")) {
+                    System.out.println(ANSI_YELLOW + "Bandera desconocida: " + arg + " (se ignora)" + ANSI_RESET);
                 }
             }
 
@@ -65,14 +78,18 @@ public class Main {
             // FASE SEMANTICA
             //
             // Va aqui, entre el parseo y la impresion, por dos razones: llena la
-            // tabla de simbolos que se imprime justo despues, y sus errores
-            // tienen que entrar en listaErrores antes del reporte final.
+            // tabla de simbolos (que se imprime con --tabla-simbolos), y sus
+            // errores tienen que entrar en listaErrores antes del reporte final.
             // ---------------------------------------------------------------
             new AnalizadorSemantico().analizar(raiz);
 
-            imprimirArbol(raiz, arbolCompleto);
+            if (mostrarArbol) {
+                imprimirArbol(raiz, arbolCompleto);
+            }
 
-            imprimirTablaSimbolos();
+            if (mostrarTabla) {
+                imprimirTablaSimbolos();
+            }
 
             if (mostrarCodigo) {
                 imprimirCodigoIntermedio();
@@ -162,6 +179,12 @@ public class Main {
                  * );
                  */
             }
+
+            if (!mostrarArbol && !mostrarTabla && !mostrarCodigo) {
+                System.out.println(ANSI_BLUE
+                        + "  (usa --arbol-sintactico, --tabla-simbolos o --codigo-intermedio para ver mas detalle)"
+                        + ANSI_RESET);
+            }
         } catch (FileNotFoundException e) {
             System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
         }
@@ -171,8 +194,8 @@ public class Main {
      * Imprime el codigo de tres direcciones que genero el esquema de traduccion.
      *
      * Solo se llama con la bandera --codigo-intermedio. La salida normal del
-     * compilador no lo incluye, porque esta fase todavia es preliminar y la
-     * consola debe seguir mostrando lo mismo de siempre.
+     * compilador no lo incluye: por defecto solo se muestran los errores.
+     * Ver generacion_ci.md.
      *
      * Se muestran las dos formas: el cuadruplo con sus cuatro casillas, que es
      * la estructura real, y la instruccion escrita como se leeria, que es lo
@@ -329,7 +352,7 @@ public class Main {
         System.out.println(ANSI_BLUE + "  Total de simbolos declarados: " + simbolos.size()
                 + "   |   Memoria total para datos: " + TablaSimbolos.tamanoDelMarco() + " bytes" + ANSI_RESET);
         System.out.println(ANSI_BLUE
-                + "\n  ANCHO en bytes: ENT 4 | DEC 8 | BOOL 1 | LETRA 2 | TXT 4 (referencia).");
+                + "\n  ANCHO en bytes: ENT 4 | DEC 8 | BOOL 1 | LETRA 2 | TXT 4 (referencia)." + ANSI_RESET);
     }
 
     /**
@@ -372,7 +395,7 @@ public class Main {
 
         if (!completo) {
             System.out.println(ANSI_BLUE
-                    + "  (usa --arbol-completo para ver la derivacion sin colapsar)"
+                    + "  (usa --arbol-sintactico-completo para ver la derivacion sin colapsar)"
                     + ANSI_RESET);
         }
     }

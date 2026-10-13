@@ -900,7 +900,7 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      * Convierte un valor booleano en saltos, en el modo indicado.
      *
      * Si ya venia como saltos se devuelve tal cual. Si venia como valor, se
-     * emite UN solo salto, el del lado que no cae (Aho, figura 6.39):
+     * emite UN solo salto, el del lado que no cae (Aho, seccion 6.6.5):
      *
      *   CAE_VERDADERO:  si_falso v ir_a _      (a la lista falsa)
      *   CAE_FALSO:      si v ir_a _            (a la lista verdadera)

@@ -1,6 +1,67 @@
 # Resumen de Cambios (Changelog) — EasyCompiler
 
 ---
+# Actualización: banderas de salida
+
+* **Archivos:** `Main.java`, `build.ps1`, `README.md`.
+* **Cambio:** `java Main <archivo>` ya no imprime siempre el árbol ni la tabla de símbolos: por defecto solo muestra el resultado del análisis y el reporte de errores y advertencias, más una línea que recuerda las banderas. Todo se sigue construyendo igual (el análisis semántico llena la tabla y los errores aunque no se impriman).
+* **Banderas nuevas:** `--arbol-sintactico` (árbol colapsado) y `--tabla-simbolos`. Se combinan entre sí y con `--codigo-intermedio`.
+* **Renombre:** `--arbol-completo` pasa a ser `--arbol-sintactico-completo`, que por sí sola ya muestra el árbol. La bandera vieja se eliminó; si se usa, aparece `Bandera desconocida` y se ignora.
+* **`build.ps1`:** switches nuevos `-Arbol` y `-Tabla`; `-Completo` pasa la bandera renombrada.
+
+---
+# Actualización: Unidad 2 — Generación de código intermedio
+
+Cierra la Unidad 2 del temario (2.1 notaciones, 2.2 representaciones, 2.3 esquemas de generación). El código intermedio deja de ser "preliminar": ahora es **correcto** (hace lo que dice el programa, con todas las conversiones a la vista) y **bien construido** (sin saltos ni etiquetas que sobren). La explicación completa, con el mismo programa en todas las notaciones y representaciones del temario, está en **`generacion_ci.md`**.
+
+**Decisiones:** la representación de trabajo son los **cuádruplos** (la única que se emite) y la notación canónica es la **postfija** (el orden en que se generan). Prefija, polaca extendida, código P, triplos y funciones (2.3.5) quedan documentados, no emitidos. Las optimizaciones clásicas se dejan para la Unidad 3.
+
+## 1. Arnés de pruebas (antes de tocar el generador)
+* **Archivos nuevos:** `SimuladorCuadruplos.java`, `VerificadorIntermedio.java`, `pruebas_u2.ps1`.
+* El simulador **ejecuta** los cuádruplos y produce una *traza* de lo que el programa imprime y lee. `pruebas_u2.ps1` guarda consola, cuádruplos y traza de cada programa en `linea_base_u2\` y, con `-Comparar`, muestra qué cambió. La regla de cada etapa: los cuádruplos pueden cambiar, pero la traza solo donde se corrige un defecto.
+* `VerificadorIntermedio` comprueba que todo salto tenga destino e informa la *forma del código*: saltos a la instrucción siguiente, saltos sobre otro salto, etiquetas sin uso y etiquetas seguidas.
+* No usa `Main`: la consola del compilador no cambia. Usa rutas completas al JDK y no modifica el `PATH`.
+
+## 2. Esquemas correctos
+| Defecto | Antes | Ahora |
+|---|---|---|
+| Variable que oculta a otra | las dos se llamaban `X` en el código | la interior es `X$2` (`Simbolo.nombreCodigo`) |
+| `LEER(V[i])` / `LEER(M[K][0])` | `leer V`; además leía `K` | `leer t` + `V[d] = t`; `K` solo se lee |
+| `LEER("msg" + X)` | `concat` inútil; el mensaje no salía | `imprimir "msg"` + `leer X` |
+| `V[i]++` | sin traducción propia para un elemento | lee el elemento, suma 1 y lo guarda en la misma dirección |
+| Comparación `ENT > DEC` | sin conversión | `ampliar` del ENT |
+| `"a" + N` | conversión escondida en `concat` | `a_texto` explícito |
+| Arreglo `DEC` que recibe un `ENT` | sin conversión | `ampliar` antes de `[]=` |
+| `X++` sobre `DEC` | sumaba `1` | suma `1.0` |
+
+Además, **`**` da siempre `DEC`** (`2 ** -3` vale 0.125, no 0): guardar una potencia en un `ENT` es SEM-04.
+
+## 3. Saltos bien construidos (Aho §6.6.5 y §6.7.2)
+* La condición recibe un **modo de salto heredado**: si el cuerpo va justo después, solo salta cuando es falsa. La comparación y el salto van en una sola instrucción con el relacional complementario (`si A <= 1 ir_a L1`). `!!` no emite nada: intercambia las listas.
+* El último bloque de un `SI` y el `SEGUN` sin `DEFECTO` ya no saltan a la instrucción siguiente. Las etiquetas solo se crean si algún salto llega a ellas.
+* Sustituye la "decisión de alcance" y el "artefacto conocido" de la actualización de backpatching (más abajo): las comparaciones ya se traducen a saltos, y los gotos redundantes ya no se generan.
+* **Resultado:** `SI (A > 1 && B > 2)` pasa de 12 instrucciones a 4; `cortocircuito.txt`, de 75 a 37; el total de los 29 programas de prueba, de 1137 a 1008 (−11 %). Saltos y etiquetas sobrantes: de 63 a 1, que está en un `PARA` mal escrito a propósito en `codigo-prueba3.txt`.
+
+## 4. Dirección de los temporales
+* Cada temporal recibe dirección después de los datos del programa, con el ancho de su tipo, como en el registro de activación de Aho (figura 7.5). No se reutilizan (Aho §6.2.1) y no entran en la tabla de símbolos, así que esa tabla no cambia.
+* Con `--codigo-intermedio` / `-Codigo` aparece, debajo de los cuádruplos, la tabla `TEMPORAL | TIPO | ANCHO | DIR`.
+
+## 5. `javacc` ya no da advertencias
+* **Archivo:** `EasyCompiler.jjt`.
+* Las 7 de *choice conflict* (`+`, `*`, `**`, `[`, `[`, `>`, `&&`) eran ambigüedades reales: en `V[I * 2` sin `]`, el `*` podría seguir dentro del índice o pertenecer ya a la expresión de fuera, y un token no basta para saberlo. Casi todas las crean las ramas vacías de la recuperación por inserción (`]`, `)` y `;` que faltan). JavaCC las resolvía de forma voraz, que es lo correcto.
+* Se escribió `LOOKAHEAD(1)` en esos 7 puntos: pide **la misma decisión**, pero declarada, y JavaCC no avisa donde el lookahead es explícito (es la solución que da su documentación para el *else colgante*). Un lookahead mayor sí habría cambiado la recuperación.
+* **Comprobado:** el `EasyCompiler.java` generado es idéntico al anterior sin contar comentarios, y los 30 programas de prueba dan la misma consola, los mismos cuádruplos y las mismas trazas. De paso, `build.ps1` deja de fallar en Windows PowerShell 5.1 cuando se redirige su salida con `2>&1`, porque `javacc` ya no escribe nada en la salida de errores.
+* De paso se corrigió el comentario de la jerarquía de expresiones, que describía la precedencia vieja (Nivel 3 = exponente).
+
+## Verificación
+* Las etapas no cambiaron el lenguaje ni la recuperación de errores. Al final se resolvieron las **7 advertencias** de *choice conflict* de `javacc` (ver la sección 5): ahora compila sin ninguna.
+* Los conteos de errores léxicos, sintácticos y semánticos y de advertencias **no cambiaron** en ningún programa de prueba.
+* Las trazas solo cambiaron donde se corrigió un defecto, y en `codigo2.txt`, un ciclo infinito que el simulador corta a los 20 000 pasos: con otra cantidad de instrucciones por vuelta el corte llega en otro punto, pero una traza es prefijo exacto de la otra.
+* Los 4 comandos manuales del README y `build.ps1` funcionan en Windows PowerShell 5.1 y en PowerShell 7 (`build.ps1` fallaba en 5.1 al leer la versión del JDK).
+* Programas de prueba nuevos, todos limpios: `intermedio_escalares.txt`, `intermedio_esquemas.txt`, `intermedio_control.txt`.
+* **Corrección de cita:** los gotos redundantes están en Aho **§6.6.5**, no en §6.6.6 como decía la actualización de backpatching.
+
+---
 # Actualización: Backpatching y corrección de precedencia
 
 Dos correcciones que había que hacer **antes** de seguir generando código, porque una producía código correcto pero ineficiente y la otra producía código sencillamente equivocado.
@@ -59,7 +120,7 @@ Se añadieron las dos conversiones: `aSaltos()` y `materializar()`. Los sitios q
 * Casos límite comprobados a mano: `SI (P)` con una variable booleana suelta, `SI (P && Q)` con dos, `SI (!!(P && Q))` y `SI (N > 0 && P || Q)`, donde la lista falsa del `&&` se convierte correctamente en la entrada del operando derecho del `||`.
 
 ## Un artefacto conocido
-El código generado contiene algún `ir_a L` seguido inmediatamente de `L:`, es decir, un salto a la instrucción siguiente. Sale de que `aSaltos()` emite siempre las dos salidas de una condición, y una de ellas a veces cae justo donde ya estábamos. Es inofensivo, y Aho lo documenta en §6.6.6 al hablar de *evitar gotos redundantes*. Quitarlos es una pasada de mirilla sobre el código ya generado, que no se ha hecho por no salirse del alcance.
+El código generado contiene algún `ir_a L` seguido inmediatamente de `L:`, es decir, un salto a la instrucción siguiente. Sale de que `aSaltos()` emite siempre las dos salidas de una condición, y una de ellas a veces cae justo donde ya estábamos. Es inofensivo, y Aho lo documenta en §6.6.5 al hablar de *evitar gotos redundantes*. Quitarlos es una pasada de mirilla sobre el código ya generado, que no se ha hecho por no salirse del alcance.
 
 ---
 # Actualización: Esquema de Traducción (código de tres direcciones)
