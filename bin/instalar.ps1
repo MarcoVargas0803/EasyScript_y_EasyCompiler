@@ -1,4 +1,5 @@
-# instalar.ps1 - Agrega el comando "easy" al PATH del usuario.
+# instalar.ps1 - Agrega el comando "easy" al PATH del usuario e instala en
+# VS Code la extension de resaltado de sintaxis para los archivos .easy.
 #
 # Uso (una sola vez, desde cualquier carpeta):
 #   powershell -ExecutionPolicy Bypass -File bin\instalar.ps1
@@ -15,6 +16,8 @@
 #      Windows nunca expandia %JAVA_HOME% y por eso "java" no se encontraba.
 #   5. Avisa a Windows del cambio para que las terminales NUEVAS lo vean. Las que
 #      ya estan abiertas (y VS Code completo) hay que cerrarlas y abrirlas.
+#   6. Instala (o desinstala) la extension vscode-easyscript\easyscript.vsix con
+#      el comando "code" de VS Code. Si VS Code no esta instalado, solo avisa.
 #
 # Solo toca el PATH del usuario: el del sistema no se modifica y no hace falta
 # ser administrador. No usa setx, que recorta el valor a 1024 caracteres.
@@ -73,5 +76,34 @@ if ($Desinstalar) {
 if ($tipo -ne "ExpandString") {
     Write-Host "El PATH de usuario estaba como $tipo; ahora es REG_EXPAND_SZ (%JAVA_HOME% ya se expande)." -ForegroundColor Green
 }
+
+# ---------------------------------------------------------------------------
+# Extension de VS Code: resaltado de sintaxis de los .easy.
+# "code" es code.cmd, que el instalador de VS Code deja en el PATH.
+# ---------------------------------------------------------------------------
+$extension = "easycompiler.easyscript"
+$vsix = Join-Path (Split-Path $carpeta -Parent) "vscode-easyscript\easyscript.vsix"
+$code = Get-Command code -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+# La CLI de VS Code corre sobre Node e imprime avisos internos (DeprecationWarning)
+# que no tienen que ver con la extension. Solo afecta a este proceso.
+$env:NODE_NO_WARNINGS = "1"
+
+if (-not $code) {
+    Write-Host "No se encontro el comando 'code' de VS Code; se omite la extension de resaltado." -ForegroundColor Yellow
+    if (-not $Desinstalar) {
+        Write-Host "  Para instalarla a mano: VS Code > Extensiones > ... > Install from VSIX > $vsix" -ForegroundColor Yellow
+    }
+} elseif ($Desinstalar) {
+    & $code.Source --uninstall-extension $extension | Out-Null
+    if ($LASTEXITCODE -eq 0) { Write-Host "Se quito la extension de VS Code $extension." -ForegroundColor Green }
+    else { Write-Host "La extension $extension no estaba instalada en VS Code." -ForegroundColor Yellow }
+} else {
+    # --force: si ya estaba, la reemplaza por la version del repositorio.
+    & $code.Source --install-extension $vsix --force | Out-Null
+    if ($LASTEXITCODE -eq 0) { Write-Host "Se instalo en VS Code la extension de resaltado para .easy." -ForegroundColor Green }
+    else { Write-Host "No se pudo instalar la extension de VS Code ($vsix)." -ForegroundColor Red }
+}
+
+if ($Desinstalar) { return }
 Write-Host "Abre una terminal NUEVA (en VS Code: cierralo por completo y vuelve a abrirlo) y prueba:" -ForegroundColor Cyan
 Write-Host "  easy Tests\codigo1.easy" -ForegroundColor Cyan

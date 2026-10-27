@@ -1,0 +1,136 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "EasyScript",
+  "scopeName": "source.easyscript",
+  "fileTypes": ["easy"],
+  "patterns": [
+    { "include": "#comentarios" },
+    { "include": "#textos" },
+    { "include": "#programa" },
+    { "include": "#control" },
+    { "include": "#tipos" },
+    { "include": "#funciones" },
+    { "include": "#booleanos" },
+    { "include": "#constantes" },
+    { "include": "#variables" },
+    { "include": "#numeros" },
+    { "include": "#operadores" },
+    { "include": "#puntuacion" }
+  ],
+  "repository": {
+    "comentarios": {
+      "patterns": [
+        {
+          "name": "comment.block.easyscript",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.easyscript" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.comment.easyscript" } }
+        },
+        {
+          "name": "comment.line.double-slash.easyscript",
+          "match": "(//).*$",
+          "captures": { "1": { "name": "punctuation.definition.comment.easyscript" } }
+        }
+      ]
+    },
+    "textos": {
+      "patterns": [
+        {
+          "comment": "CADENA: comillas dobles, con escapes \\n \\t \\r \\\\ \\\"",
+          "name": "string.quoted.double.easyscript",
+          "begin": "\"",
+          "end": "\"|$",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.easyscript" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.easyscript" } },
+          "patterns": [
+            { "name": "constant.character.escape.easyscript", "match": "\\\\[ntr\\\\\"]" },
+            { "name": "invalid.illegal.escape.easyscript", "match": "\\\\." }
+          ]
+        },
+        {
+          "comment": "VALOR_LETRA: un solo caracter entre comillas simples",
+          "name": "string.quoted.single.easyscript",
+          "match": "'[a-zA-Z0-9]'"
+        },
+        {
+          "comment": "ERROR_LONGITUD_CARACTER / ERROR_CARACTER: lo que el lexer rechaza",
+          "name": "invalid.illegal.character.easyscript",
+          "match": "'[^'\\n\\r]*'?"
+        }
+      ]
+    },
+    "programa": {
+      "name": "keyword.control.program.easyscript",
+      "match": "\\b(INICIO|FIN)\\b"
+    },
+    "control": {
+      "name": "keyword.control.flow.easyscript",
+      "match": "\\b(SI|SINO|CONTRARIO|SEGUN|CASO|DEFECTO|DETENER|PARA|MIENTRAS)\\b"
+    },
+    "tipos": {
+      "name": "storage.type.easyscript",
+      "match": "\\b(ENT|DEC|BOOL|LETRA|TXT|ARREGLO|MATRIZ)\\b"
+    },
+    "funciones": {
+      "name": "support.function.builtin.easyscript",
+      "match": "\\b(IMPRIMIR|LEER)\\b"
+    },
+    "booleanos": {
+      "name": "constant.language.boolean.easyscript",
+      "match": "\\b(VERDADERO|FALSO)\\b"
+    },
+    "constantes": {
+      "comment": "CONSTANTE: CONST_ seguido de una mayuscula y minusculas, digitos o _",
+      "name": "variable.other.constant.easyscript",
+      "match": "\\bCONST_[A-ZÁÉÍÓÚÑ][a-z0-9_áéíóúñ]*\\b"
+    },
+    "variables": {
+      "comment": "VARIABLE: una mayuscula y despues solo minusculas, digitos o _",
+      "name": "variable.other.readwrite.easyscript",
+      "match": "\\b[A-ZÁÉÍÓÚÑ][a-z0-9_áéíóúñ]*\\b"
+    },
+    "numeros": {
+      "patterns": [
+        {
+          "comment": "ERROR_NUMERO_INVALIDO: mas de un punto decimal",
+          "name": "invalid.illegal.number.easyscript",
+          "match": "\\b[0-9]+\\.[0-9]+(\\.[0-9]+)+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.easyscript",
+          "match": "(\\b[0-9]+\\.[0-9]+|\\.[0-9]+)\\b"
+        },
+        {
+          "name": "constant.numeric.integer.easyscript",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "operadores": {
+      "comment": "Los de dos caracteres van primero para que ** no se lea como * *",
+      "patterns": [
+        { "name": "keyword.operator.increment-decrement.easyscript", "match": "\\+\\+|--" },
+        { "name": "keyword.operator.arithmetic.easyscript", "match": "\\*\\*|\\+|-|\\*|/|%" },
+        { "name": "keyword.operator.comparison.easyscript", "match": "==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.logical.easyscript", "match": "&&|\\|\\||!!" },
+        { "name": "keyword.operator.assignment.easyscript", "match": "=" },
+        {
+          "comment": "ERROR_LOGICO_INCOMPLETO / ERROR_NEGACION_INCOMPLETA",
+          "name": "invalid.illegal.operator.easyscript",
+          "match": "[&|!]"
+        }
+      ]
+    },
+    "puntuacion": {
+      "patterns": [
+        { "name": "punctuation.terminator.statement.easyscript", "match": ";" },
+        { "name": "punctuation.separator.comma.easyscript", "match": "," },
+        { "name": "punctuation.separator.colon.easyscript", "match": ":" },
+        { "name": "punctuation.section.block.easyscript", "match": "[{}]" },
+        { "name": "punctuation.section.parens.easyscript", "match": "[()]" },
+        { "name": "punctuation.section.brackets.easyscript", "match": "[\\[\\]]" }
+      ]
+    }
+  }
+}

@@ -29,7 +29,13 @@ falta ser administrador. Antes guarda un respaldo del valor anterior en
 VS Code hay que cerrarlo por completo y volver a abrirlo, porque sus terminales
 heredan el entorno de cuando arrancó.
 
-Para quitarlo:
+El mismo script instala en VS Code la extensión **EasyScript**
+(`vscode-easyscript\easyscript.vsix`). Con ella los archivos `.easy` se ven con
+resaltado de sintaxis, `Ctrl+/` comenta con `//` y las llaves y comillas se cierran
+solas. Si VS Code no está instalado, el script solo lo avisa y sigue. Cómo
+modificarla o volver a empaquetarla: `vscode-easyscript\README.md`.
+
+Para quitar el comando y la extensión:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File bin\instalar.ps1 -Desinstalar
