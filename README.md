@@ -2,75 +2,43 @@
 
 Compilador del lenguaje **EasyScript**. Implementa las fases de **análisis
 léxico**, **análisis sintáctico** y **análisis semántico**, incluido el **esquema
-de traducción** a código de tres direcciones. Por defecto imprime solo el
-**reporte de errores y advertencias** de las tres fases.
+de traducción** a código de tres direcciones.
 
 El **árbol sintáctico** (decorado con sus operadores y tipos), la **tabla de
 símbolos** (con las direcciones de memoria de cada dato) y el **código intermedio**
 (cuádruplos y temporales) se construyen siempre, pero solo se imprimen si se piden
 con una bandera:
 
-| Bandera | Muestra |
-|---|---|
-| *(ninguna)* | solo errores y advertencias |
-| `--arbol-sintactico` | el árbol sintáctico, colapsado |
+| Bandera                       | Muestra                                          |
+| ----------------------------- | ------------------------------------------------ |
+| _(ninguna)_                   | solo errores y advertencias                      |
+| `--arbol-sintactico`          | el árbol sintáctico, colapsado                   |
 | `--arbol-sintactico-completo` | el árbol con la derivación literal, sin colapsar |
-| `--tabla-simbolos` | la tabla de símbolos |
-| `--codigo-intermedio` | los cuádruplos y la dirección de cada temporal |
+| `--tabla-simbolos`            | la tabla de símbolos                             |
+| `--codigo-intermedio`         | los cuádruplos y la dirección de cada temporal   |
 
 Las banderas van después del archivo y se pueden combinar:
 
 ```bash
-easy Tests\traduccion.easy --arbol-sintactico --tabla-simbolos --codigo-intermedio
+easy traduccion.easy --arbol-sintactico --tabla-simbolos --codigo-intermedio
 ```
 
 Cómo se genera, por qué se eligieron los cuádruplos y el mismo programa escrito en
 las demás notaciones del temario (prefija, postfija, polaca, código P, triplos):
 **`generacion_ci.md`**.
 
-Dos reglas del lenguaje que conviene saber antes de escribir código:
-
-* **Hay que declarar antes de usar.** El análisis recorre el programa de arriba
-  abajo, asi que una variable usada antes de su declaración es un error.
-* **`ENT` se convierte a `DEC` sin avisar, pero `DEC` a `ENT` es un error**,
-  porque perdería los decimales en silencio.
-
----
-
-# Cómo compilar y ejecutar
+# Guía de Compilación y Ejecución
 
 ## Requisitos
 
-| Herramienta | Versión usada | Dónde está en este equipo |
-|---|---|---|
-| JDK | 21 o superior | `C:\Users\carme\.jdks\openjdk-21.0.2` |
-| JavaCC | 7.0.13 | `C:\javacc\javacc-javacc-7.0.13` |
+| Herramienta | Versión usada | Como suele aparecer en el equipo |
+| ----------- | ------------- | -------------------------------- |
+| JDK         | 21 o superior | `...\.jdks\openjdk-21.0.2`       |
+| JavaCC      | 7.0.13        | `...\javacc-javacc-7.0.13`       |
 
-## El comando `easy` (lo habitual)
+## Comando `easy`
 
-`easy` compila el compilador cuando hace falta y analiza el programa que le pases.
-Funciona igual en PowerShell y en CMD, desde cualquier carpeta:
-
-```powershell
-easy Tests\muestra.easy                         # solo errores y advertencias
-easy Tests\muestra.easy --arbol-sintactico      # + árbol sintáctico
-easy Tests\muestra.easy --arbol-sintactico-completo   # + árbol sin colapsar
-easy Tests\muestra.easy --tabla-simbolos        # + tabla de símbolos
-easy Tests\muestra.easy --codigo-intermedio     # + código de tres direcciones
-easy --compilar                                 # solo compila, siempre
-```
-
-Las banderas son las de la tabla del inicio, se combinan y pasan tal cual a
-`frontend.Main`. Por debajo `easy` hace los mismos cuatro pasos de la Opción A,
-pero **solo recompila si cambió algo**: si `backend\EasyCompiler.jjt` o algún `.java`
-escrito a mano es más nuevo que la última compilación. Si no cambió nada, analiza
-directo (alrededor de un segundo en vez de unos veinte). `easy --compilar Tests\x.easy`
-fuerza la compilación antes de analizar.
-
-La salida de `jjtree`, `javacc` y `javac` se guarda en `out\compilacion.log`. Si un
-paso falla, `easy` la muestra completa.
-
-### Instalarlo (una sola vez)
+### Instalación del comando `easy` (Realizarlo solo la primera vez).
 
 Desde la carpeta `EasyCompiler`:
 
@@ -90,207 +58,21 @@ Para quitarlo:
 powershell -ExecutionPolicy Bypass -File bin\instalar.ps1 -Desinstalar
 ```
 
-Cómo está armado:
+### Funcionamiento del comando `easy`
 
-| Archivo | Qué hace |
-|---|---|
-| `bin\easy.cmd` | Lo que encuentra el `PATH`. Llama a `lanzador.ps1` con la política de scripts relajada **solo para ese proceso**. |
-| `bin\lanzador.ps1` | Busca el JDK y JavaCC con rutas completas, decide si compilar y ejecuta `frontend.Main`. |
-| `bin\instalar.ps1` | Agrega o quita `bin\` del `PATH` de usuario. |
-
-El script **no** se llama `easy.ps1` a propósito. Si se llamara así, PowerShell lo
-preferiría sobre `easy.cmd` y `easy` dependería de la política de scripts del equipo.
-En un equipo con la política por defecto (`Restricted`), fallaría.
-
-`easy` no depende de que `java`, `javac`, `jjtree` o `javacc` estén en el `PATH`:
-busca el JDK en `JAVA_HOME` y, si no, en las rutas de la tabla de requisitos.
-
-## Si la terminal no reconoce los comandos
-
-Es el tropiezo más común, y casi siempre es lo mismo: **`javacc` y `jjtree` sí están
-en el `PATH`, pero `java` y `javac` no.**
-
-La trampa está en que `javacc.bat` por dentro es una sola línea:
-
-```bat
-java -classpath "%~dp0..\target\javacc.jar" javacc %1 %2 ...
-```
-
-O sea que llama a `java`. Si el JDK no está en el `PATH`, `javacc` falla **aunque el
-propio `javacc` sí se encuentre**, y el mensaje de error habla de `java`, no de
-`javacc`, que despista bastante.
-
-Para comprobar qué ve tu terminal:
+`easy` compila el compilador cuando hace falta y analiza el programa que le pases.
+Funciona igual en PowerShell y en CMD, desde cualquier carpeta:
 
 ```powershell
-Get-Command java, javac, javacc, jjtree -ErrorAction SilentlyContinue | Select-Object Name, Source
+easy muestra.easy                         # Solo errores y advertencias
+easy muestra.easy --arbol-sintactico      # + árbol sintáctico colapsado
+easy muestra.easy --arbol-sintactico-completo   # + árbol sin colapsar
+easy muestra.easy --tabla-simbolos        # + tabla de símbolos
+easy muestra.easy --codigo-intermedio     # + código de tres direcciones
+easy --compilar                                 # solo compila
 ```
 
-Lo que no aparezca en esa lista es lo que falta.
-
-> **`%JAVA_HOME%\bin` en el `PATH` y aun así no encuentra `java`:** en el registro,
-> el `PATH` de usuario puede estar guardado como texto simple (`REG_SZ`) en vez de
-> texto expandible (`REG_EXPAND_SZ`). Con `REG_SZ`, Windows no reemplaza
-> `%JAVA_HOME%` por la ruta del JDK y la entrada no sirve. `bin\instalar.ps1` lo deja
-> como `REG_EXPAND_SZ` sin cambiar su contenido. Para revisarlo:
->
-> ```powershell
-> [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment').GetValueKind('Path')
-> ```
->
-> Debe decir `ExpandString`.
-
-> **Sobre las variables de `bin\lanzador.ps1`:** dentro de ese script hay `$java`, `$javac` y
-> `$JAVACC`. Son variables **locales al script**: existen mientras se ejecuta y
-> desaparecen al terminar. Si copias una línea del script y la pegas en una
-> terminal, `$java` está vacío y el comando no hace nada. No es que "PowerShell no
-> reconozca las variables": es que ahí no existen.
-
-## Opción A — los cuatro comandos a mano, con la sesión preparada
-
-Esto hay que hacerlo **una vez en cada terminal que abras**. No es permanente.
-
-**PowerShell**
-
-```powershell
-$env:JAVA_HOME = "C:\Users\carme\.jdks\openjdk-21.0.2"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-java -version          # comprueba antes de seguir
-```
-
-**CMD**
-
-```bat
-set JAVA_HOME=C:\Users\carme\.jdks\openjdk-21.0.2
-set PATH=%JAVA_HOME%\bin;%PATH%
-java -version
-```
-
-Con eso ya funcionan los cuatro pasos, desde la carpeta `EasyCompiler`:
-
-**PowerShell**
-
-```powershell
-jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt   # 1. gramática anotada + clases del árbol
-javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj    # 2. analizador léxico y sintáctico
-javac -encoding UTF-8 -d out backend\*.java frontend\*.java # 3. compila todo a la carpeta out\
-java "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy   # 4. analiza un programa
-```
-
-> El código está en dos paquetes: `backend` (gramática, análisis semántico y código
-> intermedio; ahí se genera todo lo de JJTree/JavaCC) y `frontend` (`Main` y el
-> impresor del árbol). Por eso el paso 4 nombra la clase completa: `frontend.Main`.
->
-> Los programas de EasyScript llevan la extensión propia **`.easy`** y están en la
-> carpeta `Tests\`. El compilador rechaza cualquier archivo con otra extensión.
->
-> `-OUTPUT_DIRECTORY` va con **dos puntos**, no con `=`: `jjtree` y `javacc` son
-> archivos `.bat`, y CMD toma el `=` como separador de argumentos.
-
-> En PowerShell el `-Dfile.encoding=UTF-8` va **entre comillas**: sin ellas,
-> PowerShell parte el argumento en el punto y Java recibe `-Dfile` y `.encoding=UTF-8`
-> por separado (falla con *Could not find or load main class .encoding=UTF-8*).
-
-**CMD**
-
-```bat
-REM 1. gramática anotada + clases del árbol
-jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
-REM 2. analizador léxico y sintáctico
-javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
-REM 3. compila todo a la carpeta out\
-javac -encoding UTF-8 -d out backend\*.java frontend\*.java
-REM 4. analiza un programa
-java -Dfile.encoding=UTF-8 -cp out frontend.Main Tests\muestra.easy
-```
-
-En CMD los comentarios van en su propia línea: un `::` o un `REM` al final de un
-comando no es un comentario, sino argumentos de más para ese comando.
-
-Qué esperar de cada paso:
-
-| Paso | Salida correcta |
-|---|---|
-| 1 | `Annotated grammar generated successfully in backend\EasyCompiler.jj` |
-| 2 | `Parser generated successfully.` (sin advertencias) |
-| 3 | **nada**: si `javac` no dice nada, compiló bien |
-| 4 | el reporte de errores (árbol y tabla, con sus banderas) |
-
-El paso 2 no debe dar **ninguna advertencia**. Si aparece un `Choice conflict`,
-la gramática cambió sin querer (ver la nota sobre las advertencias de `javacc`).
-
-El `-encoding UTF-8` del paso 3 no es opcional: el código tiene acentos y sin él
-`javac` falla en un equipo configurado en español.
-
-El `-d out` manda los `.class` a `out\backend\` y `out\frontend\` en vez de
-dejarlos mezclados con los `.java`. Por eso el paso 4 lleva `-cp out`: es donde quedaron.
-
-## Opción B — rutas completas, sin tocar el `PATH`
-
-Si prefieres no modificar nada del entorno, esto funciona siempre. Las dos primeras
-líneas solo definen atajos para no repetir la ruta entera:
-
-```powershell
-$J  = "C:\Users\carme\.jdks\openjdk-21.0.2\bin"
-$CC = "C:\javacc\javacc-javacc-7.0.13\target\javacc.jar"
-
-& "$J\java.exe"  -cp $CC jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
-& "$J\java.exe"  -cp $CC javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
-& "$J\javac.exe" -encoding UTF-8 -d out backend\*.java frontend\*.java
-& "$J\java.exe"  "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy
-```
-
-Fíjate en que `jjtree` y `javacc` no son programas: son **clases dentro de
-`javacc.jar`**. Por eso se invocan como `java -cp javacc.jar jjtree`, que es
-exactamente lo que hacen los `.bat` por dentro.
-
-El `&` del principio es el operador de llamada de PowerShell, necesario cuando la
-ruta del ejecutable está en una variable o lleva espacios.
-
-## Sintaxis general
-
-La construcción tiene **tres pasos**, porque la gramática se escribe en un archivo
-`.jjt` que primero procesa JJTree:
-
-```
-EasyCompiler.jjt  --jjtree-->  EasyCompiler.jj  --javacc-->  *.java  --javac-->  *.class
-```
-
-> **Edita siempre `EasyCompiler.jjt`, nunca `EasyCompiler.jj`.**
-> El `.jj` lo genera `jjtree` y se sobrescribe en cada compilación.
-> Si te saltas el paso 1, `javacc` no marca error: simplemente vuelve a compilar la
-> versión anterior de la gramática, y te vuelves loco buscando por qué tu cambio no
-> surte efecto.
-
-## Un programa de muestra
-
-`Tests\muestra.easy` es un programa pequeño y correcto, pensado para comprobar que la
-compilación quedó bien: tiene una declaración, un ciclo, un condicional y salidas,
-así que el árbol, la tabla de símbolos y el código intermedio salen con contenido
-cuando se piden con sus banderas.
-
-```
-INICIO{
-    ENT Contador = 0;
-    ENT Limite = 3;
-
-    MIENTRAS (Contador < Limite) {
-        IMPRIMIR("vuelta " + Contador);
-        Contador = Contador + 1;
-    }
-
-    SI (Contador == Limite) {
-        IMPRIMIR("Termino en " + Contador);
-    } SINO {
-        IMPRIMIR("Algo salio mal");
-    }
-}FIN
-```
-
-Debe terminar con `¡Excelente! No se encontraron errores en el código fuente.`
-Si sale eso, las cuatro herramientas están bien encadenadas.
-
-## Variante: ver la derivación completa
+### Comando `easy`: Explicación del --arbol-sintactico y --arbol-sintactico-completo
 
 ```bash
 easy <archivo> --arbol-sintactico-completo
@@ -339,149 +121,234 @@ DeclaracionVariable
    └─ <PUNTO_COMA: ";">
 ```
 
-## Ejemplo completo
+# Otras alternativas de compilación
 
-Partiendo del archivo `Tests\Hello world.easy`:
+## Opción A — los cuatro comandos a mano, con la sesión preparada
+
+Esto hay que hacerlo **una vez en cada terminal que abras**. No es permanente.
+
+**PowerShell**
+
+```powershell
+$env:JAVA_HOME = "C:\Users\carme\.jdks\openjdk-21.0.2"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+java -version          # comprueba antes de seguir
+```
+
+**CMD**
+
+```bat
+set JAVA_HOME=C:\Users\carme\.jdks\openjdk-21.0.2
+set PATH=%JAVA_HOME%\bin;%PATH%
+java -version
+```
+
+Con eso ya funcionan los cuatro pasos, desde la carpeta `EasyCompiler`:
+
+**PowerShell**
+
+```powershell
+jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt   # 1. gramática anotada + clases del árbol
+javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj    # 2. analizador léxico y sintáctico
+javac -encoding UTF-8 -d out backend\*.java frontend\*.java # 3. compila todo a la carpeta out\
+java "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy   # 4. analiza un programa
+```
+
+**CMD**
+
+```bat
+REM 1. gramática anotada + clases del árbol
+jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
+REM 2. analizador léxico y sintáctico
+javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
+REM 3. compila todo a la carpeta out\
+javac -encoding UTF-8 -d out backend\*.java frontend\*.java
+REM 4. analiza un programa
+java -Dfile.encoding=UTF-8 -cp out frontend.Main Tests\muestra.easy
+```
+
+Qué esperar de cada paso:
+
+| Paso | Salida correcta                                                       |
+| ---- | --------------------------------------------------------------------- |
+| 1    | `Annotated grammar generated successfully in backend\EasyCompiler.jj` |
+| 2    | `Parser generated successfully.` (sin advertencias)                   |
+| 3    | **nada**: si `javac` no dice nada, compiló bien                       |
+| 4    | el reporte de errores (árbol y tabla, con sus banderas)               |
+
+El paso 2 no debe dar **ninguna advertencia**. Si aparece un `Choice conflict`,
+la gramática cambió sin querer (ver la nota sobre las advertencias de `javacc`).
+
+El `-encoding UTF-8` del paso 3 no es opcional: el código tiene acentos y sin él
+`javac` falla en un equipo configurado en español.
+
+El `-d out` manda los `.class` a `out\backend\` y `out\frontend\` en vez de
+dejarlos mezclados con los `.java`. Por eso el paso 4 lleva `-cp out`: es donde quedaron.
+
+## Opción B — rutas completas, sin tocar el `PATH`
+
+Si prefieres no modificar nada del entorno, esto funciona siempre. Las dos primeras
+líneas solo definen atajos para no repetir la ruta entera:
+
+```powershell
+$J  = "C:\Users\carme\.jdks\openjdk-21.0.2\bin"
+$CC = "C:\javacc\javacc-javacc-7.0.13\target\javacc.jar"
+
+& "$J\java.exe"  -cp $CC jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
+& "$J\java.exe"  -cp $CC javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
+& "$J\javac.exe" -encoding UTF-8 -d out backend\*.java frontend\*.java
+& "$J\java.exe"  "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy
+```
+
+## Si la terminal no reconoce los comandos
+
+Es el tropiezo más común, y casi siempre es lo mismo: **`javacc` y `jjtree` sí están
+en el `PATH`, pero `java` y `javac` no.**
+
+La trampa está en que `javacc.bat` por dentro es una sola línea:
+
+```bat
+java -classpath "%~dp0..\target\javacc.jar" javacc %1 %2 ...
+```
+
+O sea que llama a `java`. Si el JDK no está en el `PATH`, `javacc` falla **aunque el
+propio `javacc` sí se encuentre**, y el mensaje de error habla de `java`, no de
+`javacc`, que despista bastante.
+
+Para comprobar qué ve tu terminal:
+
+```powershell
+Get-Command java, javac, javacc, jjtree -ErrorAction SilentlyContinue | Select-Object Name, Source
+```
+
+Lo que no aparezca en esa lista es lo que falta.
+
+> **`%JAVA_HOME%\bin` en el `PATH` y aun así no encuentra `java`:** en el registro,
+> el `PATH` de usuario puede estar guardado como texto simple (`REG_SZ`) en vez de
+> texto expandible (`REG_EXPAND_SZ`). Con `REG_SZ`, Windows no reemplaza
+> `%JAVA_HOME%` por la ruta del JDK y la entrada no sirve. `bin\instalar.ps1` lo deja
+> como `REG_EXPAND_SZ` sin cambiar su contenido. Para revisarlo:
+>
+> ```powershell
+> [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment').GetValueKind('Path')
+> ```
+>
+> Debe decir `ExpandString`.
+
+> **Sobre las variables de `bin\lanzador.ps1`:** dentro de ese script hay `$java`, `$javac` y
+> `$JAVACC`. Son variables **locales al script**: existen mientras se ejecuta y
+> desaparecen al terminar. Si copias una línea del script y la pegas en una
+> terminal, `$java` está vacío y el comando no hace nada. No es que "PowerShell no
+> reconozca las variables": es que ahí no existen.
+
+# Proceso de contribución
+
+La construcción tiene **tres pasos**, porque la gramática se escribe en un archivo
+`.jjt` que primero procesa JJTree:
+
+```
+EasyCompiler.jjt  --jjtree-->  EasyCompiler.jj  --javacc-->  *.java  --javac-->  *.class
+```
+
+> **Edita siempre `EasyCompiler.jjt`, nunca `EasyCompiler.jj`.**
+> El `.jj` lo genera `jjtree` y se sobrescribe en cada compilación.
+> Si te saltas el paso 1, `javacc` no marca error: simplemente vuelve a compilar la
+> versión anterior de la gramática.
+
+# Un programa de muestra
+
+`Tests\muestra.easy` es un programa pequeño y correcto, pensado para comprobar que la
+compilación quedó bien: tiene una declaración, un ciclo, un condicional y salidas,
+así que el árbol, la tabla de símbolos y el código intermedio salen con contenido
+cuando se piden con sus banderas.
 
 ```
 INICIO{
-    IMPRIMIR("HOLA MUNDO EN EASYSCRIPT");
+    ENT Contador = 0;
+    ENT Limite = 3;
+
+    MIENTRAS (Contador < Limite) {
+        IMPRIMIR("vuelta " + Contador);
+        Contador = Contador + 1;
+    }
+
+    SI (Contador == Limite) {
+        IMPRIMIR("Termino en " + Contador);
+    } SINO {
+        IMPRIMIR("Algo salio mal");
+    }
 }FIN
 ```
 
-Se compila y ejecuta así:
-
-```bash
-easy "Tests\Hello world.easy"
-```
-
-(o con los cuatro comandos de la Opción A, cambiando el archivo del paso 4).
-
-Y produce solo el resultado:
-
-```
->> Analisis completado.
->> ¡Excelente! No se encontraron errores en el código fuente.
-  (usa --arbol-sintactico, --tabla-simbolos o --codigo-intermedio para ver mas detalle)
-```
-
-Para ver además el árbol, se vuelve a ejecutar con la bandera:
-
-```bash
-easy "Tests\Hello world.easy" --arbol-sintactico
-```
-
-```
->> Analisis completado.
-
-============================================================
- 🌳 ARBOL SINTACTICO (colapsado)
-============================================================
-Programa
-├─ <INICIO_PROGRAMA: "INICIO">
-├─ <ABRIR_LLAVE: "{">
-├─ Sentencias
-│  └─ Imprimir
-│     ├─ <IMPRIMIR_FUNCION: "IMPRIMIR">
-│     ├─ <ABRIR_PARENTESIS: "(">
-│     ├─ Valor
-│     │  └─ <CADENA: "\"HOLA MUNDO EN EASYSCRIPT\"">
-│     ├─ <CERRAR_PARENTESIS: ")">
-│     └─ PuntoYComaVirtual
-│        └─ <PUNTO_COMA: ";">
-├─ <CERRAR_LLAVE: "}">
-├─ <FIN_PROGRAMA: "FIN">
-└─ <EOF>
-  (usa --arbol-sintactico-completo para ver la derivacion sin colapsar)
-
->> ¡Excelente! No se encontraron errores en el código fuente.
-```
-
-Si el código tiene errores, en lugar del mensaje final aparece el reporte de errores
-con tipo, línea, columna, detalle y un consejo para cada uno.
-
-## Nota sobre las advertencias de `javacc`
-
-> `javacc` compila la gramática **sin advertencias**. Antes daba 7 de `Choice
-> conflict` (`+`, `*`, `**`, `[`, `[`, `>`, `&&`): ambigüedades reales, casi todas
-> creadas por la recuperación de errores por inserción, que JavaCC resolvía de forma
-> voraz, que es la correcta. Ahora esa decisión está escrita en la gramática con
-> `LOOKAHEAD(1)` en esos 7 puntos; el parser generado es idéntico al de antes.
-> Ver el comentario en `EasyCompiler.jjt`, al inicio de la jerarquía de
-> expresiones. Si vuelve a aparecer una advertencia, la gramática se modificó sin
-> querer.
-
-Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
-
----
+Debe terminar con `¡Excelente! No se encontraron errores en el código fuente.`
+Si sale eso, las cuatro herramientas están bien encadenadas.
 
 # Estructuras Gramaticales y Sintácticas Aceptadas
 
-
 ## Sintaxis del lenguaje
 
-1. Programa Principal
+1.  Programa Principal
 
-        
-    ***Estructura General:***
+    **_Estructura General:_**
 
         INICIO {
             Sentencias
         } FIN
 
-2. Declaración de Variables
-        
-    ***Formato:***
-    
+2.  Declaración de Variables
+
+    **_Formato:_**
+
         TipoDato Variable = Valor;
 
-    ***Ejemplo:***
-    
+    **_Ejemplo:_**
+
         ENT Numero = 5;
 
-3. Declaración de Arreglos
+3.  Declaración de Arreglos
 
-   ***Formato:***
-   
-        ARREGLO TipoDato Variable[Tamaño];
+    **_Formato:_**
 
-   ***Ejemplo:***
-   
-        ARREGLO ENT Calificaciones[10];
+         ARREGLO TipoDato Variable[Tamaño];
 
-5. Declaración de Matrices
+    **_Ejemplo:_**
 
-   ***Formato:***
-   
-        MATRIZ TipoDato Variable[Filas][Columnas];
+         ARREGLO ENT Calificaciones[10];
 
-   ***Ejemplo:***
-   
-        MATRIZ DEC Tablero[5][5];
+4.  Declaración de Matrices
 
-7. Asignación de Valores
+    **_Formato:_**
 
-   ***Formato:***
-   
-        Variable = ExpresionAritmetica;
-   ***Ejemplo:***
-   
-        Numero = Numero + 1;
+         MATRIZ TipoDato Variable[Filas][Columnas];
 
-9. Operaciones Matemáticas
+    **_Ejemplo:_**
 
-    ***Formato:***
-        
+         MATRIZ DEC Tablero[5][5];
+
+5.  Asignación de Valores
+
+    **_Formato:_**
+
+         Variable = ExpresionAritmetica;
+
+    **_Ejemplo:_**
+
+         Numero = Numero + 1;
+
+6.  Operaciones Matemáticas
+
+    **_Formato:_**
+
         Valor Operador Valor
         Operadores: +, -, *, /, %, **
-        
-    ***Ejemplo:***
+
+    **_Ejemplo:_**
 
         Resultado = Numero1 + Numero2;
 
-10. Condicionales
+7.  Condicionales
 
-    ***Formato:***
+    **_Formato:_**
 
         SI (Condicion) {
             Sentencias
@@ -490,8 +357,8 @@ Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
         } SINO {
             Sentencias
         }
-    
-    ***Ejemplo:***
+
+    **_Ejemplo:_**
 
         SI (Numero > 10) {
             IMPRIMIR("Mayor a 10");
@@ -499,9 +366,9 @@ Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
             IMPRIMIR("Menor o igual a 10");
         }
 
-11. Condicional SEGUN (Switch)
+8.  Condicional SEGUN (Switch)
 
-***Formato:***
+**_Formato:_**
 
         SEGUN (Variable) {
             CASO Valor:
@@ -511,7 +378,7 @@ Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
                 Sentencias
         }
 
-***Ejemplo:***
+**_Ejemplo:_**
 
         SEGUN (Opcion) {
             CASO 1:
@@ -520,15 +387,16 @@ Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
             DEFECTO:
                 IMPRIMIR("Opción no válida");
         }
+
 9. Ciclo PARA
 
-***Formato:***
+**_Formato:_**
 
         PARA (DeclaracionVariable; Condicion; Incremento/Decremento) {
             Sentencias
         }
 
-***Ejemplo:***
+**_Ejemplo:_**
 
         PARA (ENT i = 0; i < 10; i++) {
             IMPRIMIR(i);
@@ -536,30 +404,32 @@ Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
 
 10. Ciclo MIENTRAS
 
-***Formato:***
+**_Formato:_**
 
         MIENTRAS (Condicion) {
             Sentencias
         }
 
-***Ejemplo:***
+**_Ejemplo:_**
 
         MIENTRAS (Numero < 100) {
             Numero = Numero * 2;
         }
+
 11. Entrada y Salida
 
-***Imprimir:***
+**_Imprimir:_**
 
         IMPRIMIR("Texto" + Variable);
-***Leer:***
+
+**_Leer:_**
 
         LEER(Variable);
 
 12. Condiciones
 
-***Condición Simple:***
-        
+**_Condición Simple:_**
+
 **Formato:**
 
         Valor OperadorRelacional Valor
@@ -568,11 +438,11 @@ Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
 
         5 > 3
 
-***Operadores Relacionales:***
+**_Operadores Relacionales:_**
 
          >, <, >=, <=, ==, !=
 
-***Condición Compuesta:***
+**_Condición Compuesta:_**
 
 **Formato:**
 
@@ -582,7 +452,6 @@ Las formas de compilar están explicadas arriba, en *Cómo compilar y ejecutar*.
 
            ( 16 > 8 ) && (16 < 10 )
 
-
-***Operadores Lógicos:***
+**_Operadores Lógicos:_**
 
          &&, ||, !!
