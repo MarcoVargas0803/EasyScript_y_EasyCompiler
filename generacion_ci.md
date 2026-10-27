@@ -5,7 +5,7 @@ representaciones de código intermedio y **2.3** esquemas de generación. Las ci
 Aho, Lam, Sethi y Ullman, *Compiladores: principios, técnicas y herramientas*, 2a ed.
 
 ```powershell
-.\build.ps1 -Ejecutar intermedio_control.txt -Codigo    # cuádruplos + direcciones de temporales
+.\build.ps1 -Ejecutar Tests\intermedio_control.easy -Codigo    # cuádruplos + direcciones de temporales
 ```
 
 ## 1. Decisiones
@@ -171,8 +171,8 @@ los cuádruplos y la **traza**: lo que el código hace al ejecutarlo en `Simulad
 Con `-Comparar` muestra las diferencias contra la línea base. Un cambio de esta unidad puede
 cambiar los cuádruplos, pero la traza solo puede cambiar donde corrige un defecto.
 `VerificadorIntermedio` comprueba además que todo salto tenga destino e informa la *forma del
-código* (saltos y etiquetas sobrantes). Programas dedicados: `intermedio_escalares.txt`,
-`intermedio_esquemas.txt` e `intermedio_control.txt`.
+código* (saltos y etiquetas sobrantes). Programas dedicados: `Tests\intermedio_escalares.easy`,
+`Tests\intermedio_esquemas.easy` e `Tests\intermedio_control.easy`.
 
 ## 5. Qué cambió en esta unidad
 
@@ -185,7 +185,7 @@ código* (saltos y etiquetas sobrantes). Programas dedicados: `intermedio_escala
 | `X++` sobre DEC sumaba `1` | suma `1.0` |
 | `SI (A > 1 && B > 2)`: 12 instrucciones | 4 |
 | 63 saltos y etiquetas sobrantes en los programas de prueba | 1 (un `PARA` mal escrito a propósito) |
-| 1137 instrucciones en los 29 programas | 1008 (−11 %); `cortocircuito.txt` de 75 a 37 |
+| 1137 instrucciones en los 29 programas | 1008 (−11 %); `Tests\cortocircuito.easy` de 75 a 37 |
 | Temporales sin dirección | dirección tras los datos, tabla con `-Codigo` |
 
 Fuera de alcance: emitir prefija, polaca, código P o triplos; funciones en el lenguaje;

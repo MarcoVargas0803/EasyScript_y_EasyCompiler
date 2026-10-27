@@ -1,9 +1,9 @@
 # pruebas_u2.ps1 - Arnes de regresion de la Unidad 2 (codigo intermedio).
 #
-# Captura, por cada *.txt del proyecto, tres cosas que no deben cambiar sin
+# Captura, por cada Tests\*.easy del proyecto, tres cosas que no deben cambiar sin
 # querer mientras se modifica el generador de codigo:
 #
-#   <base>.consola.txt     lo que imprime  java Main <archivo> --arbol-sintactico --tabla-simbolos
+#   <base>.consola.txt     lo que imprime  java frontend.Main <archivo> --arbol-sintactico --tabla-simbolos
 #                          (las dos banderas reproducen la salida que antes era la de por defecto)
 #   <base>.cuadruplos.txt  el codigo de tres direcciones generado
 #   <base>.traza.txt       lo que HACE ese codigo al ejecutarlo en el simulador
@@ -98,16 +98,16 @@ function Guardar-SalidaJava([string] $argumentos, [string] $destino) {
 function Capturar([string] $dir) {
     New-Item -ItemType Directory -Force $dir | Out-Null
 
-    $archivos = Get-ChildItem -Path $proyecto -Filter *.txt -File | Sort-Object Name
+    $archivos = Get-ChildItem -Path (Join-Path $proyecto "Tests") -Filter *.easy -File | Sort-Object Name
     Write-Host ("Capturando la consola de Main para " + $archivos.Count + " archivos...") -ForegroundColor Cyan
     foreach ($f in $archivos) {
         $destino = Join-Path $dir ($f.BaseName + ".consola.txt")
-        Guardar-SalidaJava ('-Dfile.encoding=UTF-8 -cp out Main "' + $f.Name + '" --arbol-sintactico --tabla-simbolos') $destino | Out-Null
+        Guardar-SalidaJava ('-Dfile.encoding=UTF-8 -cp out frontend.Main "Tests\' + $f.Name + '" --arbol-sintactico --tabla-simbolos') $destino | Out-Null
     }
 
     Write-Host "Ejecutando VerificadorIntermedio..." -ForegroundColor Cyan
     # Out-Host: la tabla va a la pantalla y no al valor de retorno de la funcion.
-    & $java "-Dfile.encoding=UTF-8" -cp out VerificadorIntermedio -salida $dir | Out-Host
+    & $java "-Dfile.encoding=UTF-8" -cp out backend.VerificadorIntermedio -salida $dir | Out-Host
     return $LASTEXITCODE
 }
 
@@ -211,7 +211,7 @@ try {
     # Programas de los dos lados: los que hay ahora y los que habia en la
     # linea base (por si se borro o renombro alguno).
     $nombres = @{}
-    foreach ($f in (Get-ChildItem -Path $proyecto -Filter *.txt -File)) { $nombres[$f.BaseName] = $true }
+    foreach ($f in (Get-ChildItem -Path (Join-Path $proyecto "Tests") -Filter *.easy -File)) { $nombres[$f.BaseName] = $true }
     foreach ($f in (Get-ChildItem -Path $dirBase -Filter *.consola.txt -File)) {
         $nombres[$f.Name.Substring(0, $f.Name.Length - ".consola.txt".Length)] = $true
     }
@@ -237,12 +237,12 @@ try {
         }
 
         if ($distintos.Count -eq 0) {
-            Write-Host ("  [igual]   " + $base + ".txt") -ForegroundColor DarkGray
+            Write-Host ("  [igual]   " + $base + ".easy") -ForegroundColor DarkGray
             continue
         }
 
         $archivosConCambios++
-        Write-Host ("  [CAMBIO]  " + $base + ".txt  ->  " + ($distintos -join ", ")) -ForegroundColor Yellow
+        Write-Host ("  [CAMBIO]  " + $base + ".easy  ->  " + ($distintos -join ", ")) -ForegroundColor Yellow
         foreach ($t in $distintos) {
             $cambios[$t]++
             $a = Join-Path $dirBase   ($base + "." + $t + ".txt")

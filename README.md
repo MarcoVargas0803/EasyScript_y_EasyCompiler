@@ -21,7 +21,7 @@ con una bandera:
 Las banderas van después del archivo y se pueden combinar:
 
 ```bash
-java Main traduccion.txt --arbol-sintactico --tabla-simbolos --codigo-intermedio
+java -cp out frontend.Main Tests\traduccion.easy --arbol-sintactico --tabla-simbolos --codigo-intermedio
 ```
 
 Cómo se genera, por qué se eligieron los cuádruplos y el mismo programa escrito en
@@ -100,11 +100,21 @@ Con eso ya funcionan los cuatro pasos, desde la carpeta `EasyCompiler`:
 **PowerShell**
 
 ```powershell
-jjtree EasyCompiler.jjt                 # 1. gramática anotada + clases del árbol
-javacc EasyCompiler.jj                  # 2. analizador léxico y sintáctico
-javac -encoding UTF-8 -d out *.java     # 3. compila todo a la carpeta out\
-java "-Dfile.encoding=UTF-8" -cp out Main muestra.txt   # 4. analiza un programa
+jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt   # 1. gramática anotada + clases del árbol
+javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj    # 2. analizador léxico y sintáctico
+javac -encoding UTF-8 -d out backend\*.java frontend\*.java # 3. compila todo a la carpeta out\
+java "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy   # 4. analiza un programa
 ```
+
+> El código está en dos paquetes: `backend` (gramática, análisis semántico y código
+> intermedio; ahí se genera todo lo de JJTree/JavaCC) y `frontend` (`Main` y el
+> impresor del árbol). Por eso el paso 4 nombra la clase completa: `frontend.Main`.
+>
+> Los programas de EasyScript llevan la extensión propia **`.easy`** y están en la
+> carpeta `Tests\`. El compilador rechaza cualquier archivo con otra extensión.
+>
+> `-OUTPUT_DIRECTORY` va con **dos puntos**, no con `=`: `jjtree` y `javacc` son
+> archivos `.bat`, y CMD toma el `=` como separador de argumentos.
 
 > En PowerShell el `-Dfile.encoding=UTF-8` va **entre comillas**: sin ellas,
 > PowerShell parte el argumento en el punto y Java recibe `-Dfile` y `.encoding=UTF-8`
@@ -114,13 +124,13 @@ java "-Dfile.encoding=UTF-8" -cp out Main muestra.txt   # 4. analiza un programa
 
 ```bat
 REM 1. gramática anotada + clases del árbol
-jjtree EasyCompiler.jjt
+jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
 REM 2. analizador léxico y sintáctico
-javacc EasyCompiler.jj
+javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
 REM 3. compila todo a la carpeta out\
-javac -encoding UTF-8 -d out *.java
+javac -encoding UTF-8 -d out backend\*.java frontend\*.java
 REM 4. analiza un programa
-java -Dfile.encoding=UTF-8 -cp out Main muestra.txt
+java -Dfile.encoding=UTF-8 -cp out frontend.Main Tests\muestra.easy
 ```
 
 En CMD los comentarios van en su propia línea: un `::` o un `REM` al final de un
@@ -130,7 +140,7 @@ Qué esperar de cada paso:
 
 | Paso | Salida correcta |
 |---|---|
-| 1 | `Annotated grammar generated successfully in .\EasyCompiler.jj` |
+| 1 | `Annotated grammar generated successfully in backend\EasyCompiler.jj` |
 | 2 | `Parser generated successfully.` (sin advertencias) |
 | 3 | **nada**: si `javac` no dice nada, compiló bien |
 | 4 | el reporte de errores (árbol y tabla, con sus banderas) |
@@ -141,8 +151,8 @@ la gramática cambió sin querer (ver la nota sobre las advertencias de `javacc`
 El `-encoding UTF-8` del paso 3 no es opcional: el código tiene acentos y sin él
 `javac` falla en un equipo configurado en español.
 
-El `-d out` manda los `.class` a `out\` en vez de dejarlos mezclados con los
-`.java`. Por eso el paso 4 lleva `-cp out`: es donde quedaron.
+El `-d out` manda los `.class` a `out\backend\` y `out\frontend\` en vez de
+dejarlos mezclados con los `.java`. Por eso el paso 4 lleva `-cp out`: es donde quedaron.
 
 ## Opción B — rutas completas, sin tocar el `PATH`
 
@@ -153,10 +163,10 @@ líneas solo definen atajos para no repetir la ruta entera:
 $J  = "C:\Users\carme\.jdks\openjdk-21.0.2\bin"
 $CC = "C:\javacc\javacc-javacc-7.0.13\target\javacc.jar"
 
-& "$J\java.exe"  -cp $CC jjtree EasyCompiler.jjt
-& "$J\java.exe"  -cp $CC javacc EasyCompiler.jj
-& "$J\javac.exe" -encoding UTF-8 -d out *.java
-& "$J\java.exe"  "-Dfile.encoding=UTF-8" -cp out Main muestra.txt
+& "$J\java.exe"  -cp $CC jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
+& "$J\java.exe"  -cp $CC javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
+& "$J\javac.exe" -encoding UTF-8 -d out backend\*.java frontend\*.java
+& "$J\java.exe"  "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy
 ```
 
 Fíjate en que `jjtree` y `javacc` no son programas: son **clases dentro de
@@ -173,17 +183,17 @@ ruta del ejecutable está en una variable o lleva espacios.
 
 ```powershell
 .\build.ps1                                      # solo compila
-.\build.ps1 -Ejecutar muestra.txt                # compila y analiza (solo errores)
-.\build.ps1 -Ejecutar muestra.txt -Arbol         # + árbol sintáctico
-.\build.ps1 -Ejecutar muestra.txt -Completo      # + árbol con la derivación sin colapsar
-.\build.ps1 -Ejecutar muestra.txt -Tabla         # + tabla de símbolos
-.\build.ps1 -Ejecutar muestra.txt -Codigo        # + código de tres direcciones
+.\build.ps1 -Ejecutar Tests\muestra.easy                # compila y analiza (solo errores)
+.\build.ps1 -Ejecutar Tests\muestra.easy -Arbol         # + árbol sintáctico
+.\build.ps1 -Ejecutar Tests\muestra.easy -Completo      # + árbol con la derivación sin colapsar
+.\build.ps1 -Ejecutar Tests\muestra.easy -Tabla         # + tabla de símbolos
+.\build.ps1 -Ejecutar Tests\muestra.easy -Codigo        # + código de tres direcciones
 ```
 
 Si PowerShell se niega a ejecutarlo por la política de scripts:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1 -Ejecutar muestra.txt
+powershell -ExecutionPolicy Bypass -File .\build.ps1 -Ejecutar Tests\muestra.easy
 ```
 
 ## Sintaxis general
@@ -203,7 +213,7 @@ EasyCompiler.jjt  --jjtree-->  EasyCompiler.jj  --javacc-->  *.java  --javac--> 
 
 ## Un programa de muestra
 
-`muestra.txt` es un programa pequeño y correcto, pensado para comprobar que la
+`Tests\muestra.easy` es un programa pequeño y correcto, pensado para comprobar que la
 compilación quedó bien: tiene una declaración, un ciclo, un condicional y salidas,
 así que el árbol, la tabla de símbolos y el código intermedio salen con contenido
 cuando se piden con sus banderas.
@@ -232,7 +242,7 @@ Si sale eso, las cuatro herramientas están bien encadenadas.
 ## Variante: ver la derivación completa
 
 ```bash
-java Main <archivo> --arbol-sintactico-completo
+java -cp out frontend.Main <archivo> --arbol-sintactico-completo
 ```
 
 Con `--arbol-sintactico` el árbol se imprime **colapsado**: se omiten los eslabones
@@ -280,7 +290,7 @@ DeclaracionVariable
 
 ## Ejemplo completo
 
-Partiendo del archivo `Hello world.txt`:
+Partiendo del archivo `Tests\Hello world.easy`:
 
 ```
 INICIO{
@@ -291,10 +301,10 @@ INICIO{
 Se compila y ejecuta así:
 
 ```bash
-jjtree EasyCompiler.jjt
-javacc EasyCompiler.jj
-javac -encoding UTF-8 *.java
-java Main "Hello world.txt"
+jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
+javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
+javac -encoding UTF-8 -d out backend\*.java frontend\*.java
+java -cp out frontend.Main "Tests\Hello world.easy"
 ```
 
 Y produce solo el resultado:
@@ -308,7 +318,7 @@ Y produce solo el resultado:
 Para ver además el árbol, se vuelve a ejecutar con la bandera:
 
 ```bash
-java Main "Hello world.txt" --arbol-sintactico
+java -cp out frontend.Main "Tests\Hello world.easy" --arbol-sintactico
 ```
 
 ```
