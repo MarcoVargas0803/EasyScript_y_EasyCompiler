@@ -6,6 +6,8 @@
 #   easy Tests\codigo1.easy --arbol-sintactico    Ademas el arbol sintactico
 #   easy Tests\codigo1.easy --arbol-sintactico-completo
 #   easy Tests\codigo1.easy --tabla-simbolos --codigo-intermedio
+#   easy --ayuda                                  Sintaxis y tabla de banderas
+#   easy Tests\codigo1.easy --ayuda               Solo la tabla de banderas
 #   easy --compilar                               Solo compila, siempre
 #   easy --compilar Tests\codigo1.easy ...        Fuerza la compilacion y analiza
 #

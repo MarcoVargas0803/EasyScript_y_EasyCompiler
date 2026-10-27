@@ -25,6 +25,30 @@ public class Main {
                 System.out.println("          --tabla-simbolos             Muestra la tabla de simbolos.");
                 System.out.println("          --codigo-intermedio          Muestra el codigo de tres direcciones que");
                 System.out.println("                                       genera el esquema de traduccion.");
+                sugerirAyuda();
+                return;
+            }
+
+            // --ayuda sola (easy --ayuda) muestra la sintaxis y las banderas;
+            // despues de un archivo (easy codigo1.easy --ayuda) solo las banderas.
+            // En ambos casos no se analiza nada.
+            if (args[0].equals("--ayuda")) {
+                imprimirAyuda();
+                return;
+            }
+            for (int i = 1; i < args.length; i++) {
+                if (args[i].equals("--ayuda")) {
+                    imprimirTablaBanderas();
+                    return;
+                }
+            }
+
+            // Una bandera en el lugar del archivo (easy --tabla-simbolos): falta
+            // el archivo, o la bandera se escribio antes que el.
+            if (args[0].startsWith("-")) {
+                System.out.println("Error: Falta el archivo. Las banderas van despues del archivo, por ejemplo:");
+                System.out.println("  easy Tests\\codigo1.easy " + args[0]);
+                sugerirAyuda();
                 return;
             }
 
@@ -34,6 +58,7 @@ public class Main {
             if (!args[0].toLowerCase().endsWith(".easy")) {
                 System.out.println("Error: El archivo " + args[0] + " no es un programa de EasyScript.");
                 System.out.println("Los programas deben tener la extension .easy (por ejemplo, codigo1.easy).");
+                sugerirAyuda();
                 return;
             }
 
@@ -47,6 +72,7 @@ public class Main {
             boolean arbolCompleto = false;
             boolean mostrarTabla = false;
             boolean mostrarCodigo = false;
+            boolean banderaDesconocida = false;
             for (int i = 1; i < args.length; i++) {
                 String arg = args[i];
                 if (arg.equals("--arbol-sintactico")) {
@@ -58,9 +84,16 @@ public class Main {
                     mostrarTabla = true;
                 } else if (arg.equals("--codigo-intermedio")) {
                     mostrarCodigo = true;
-                } else if (arg.startsWith("--")) {
+                } else {
+                    // Tambien lo que no empieza con "--" (-tabla, tabla-simbolos,
+                    // un segundo archivo): antes se ignoraba sin avisar.
                     System.out.println(ANSI_YELLOW + "Bandera desconocida: " + arg + " (se ignora)" + ANSI_RESET);
+                    banderaDesconocida = true;
                 }
+            }
+            // Una sola vez aunque haya varias; el analisis sigue con las demas.
+            if (banderaDesconocida) {
+                sugerirAyuda();
             }
 
             // El estado de la tabla de simbolos es estatico: se limpia antes de
@@ -200,7 +233,50 @@ public class Main {
             }
         } catch (FileNotFoundException e) {
             System.out.println("El archivo " + args[0] + " no existe en la carpeta.");
+            sugerirAyuda();
         }
+    }
+
+    /** Va despues de cada error de uso: archivo o bandera mal escritos. */
+    private static void sugerirAyuda() {
+        System.out.println(ANSI_BLUE + "Para recibir ayuda utiliza el comando 'easy --ayuda'." + ANSI_RESET);
+    }
+
+    /** easy --ayuda: la forma de invocar el compilador y sus banderas. */
+    private static void imprimirAyuda() {
+        System.out.println(ANSI_BLUE + "============================================================");
+        System.out.println(" EASYCOMPILER - AYUDA");
+        System.out.println("============================================================" + ANSI_RESET);
+        System.out.println("Uso:");
+        System.out.println("  easy <archivo.easy> [banderas ...]");
+        System.out.println();
+        System.out.println("Ejemplos:");
+        System.out.println("  easy Tests\\codigo1.easy");
+        System.out.println("  easy Tests\\codigo1.easy --arbol-sintactico --tabla-simbolos");
+        System.out.println("  easy Tests\\codigo1.easy --ayuda      (solo la tabla de banderas)");
+        System.out.println();
+        System.out.println("El archivo debe tener la extension .easy. Las banderas van despues del");
+        System.out.println("archivo, en cualquier orden, y se pueden combinar.");
+        System.out.println();
+        imprimirTablaBanderas();
+    }
+
+    /**
+     * easy <archivo> --ayuda: las banderas disponibles. Es la misma tabla que
+     * aparece al inicio del README.md; si se agrega una bandera, va en los dos.
+     */
+    private static void imprimirTablaBanderas() {
+        String borde = "+-----------------------------+--------------------------------------------------+";
+        String formato = "| %-27s | %-48s |%n";
+        System.out.println(borde);
+        System.out.printf(formato, "BANDERA", "MUESTRA");
+        System.out.println(borde);
+        System.out.printf(formato, "(ninguna)", "solo errores y advertencias");
+        System.out.printf(formato, "--arbol-sintactico", "el árbol sintáctico, colapsado");
+        System.out.printf(formato, "--arbol-sintactico-completo", "el árbol con la derivación literal, sin colapsar");
+        System.out.printf(formato, "--tabla-simbolos", "la tabla de símbolos");
+        System.out.printf(formato, "--codigo-intermedio", "los cuádruplos y la dirección de cada temporal");
+        System.out.println(borde);
     }
 
     /**

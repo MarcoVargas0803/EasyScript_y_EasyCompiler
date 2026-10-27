@@ -4,29 +4,6 @@ Compilador del lenguaje **EasyScript**. Implementa las fases de **análisis
 léxico**, **análisis sintáctico** y **análisis semántico**, incluido el **esquema
 de traducción** a código de tres direcciones.
 
-El **árbol sintáctico** (decorado con sus operadores y tipos), la **tabla de
-símbolos** (con las direcciones de memoria de cada dato) y el **código intermedio**
-(cuádruplos y temporales) se construyen siempre, pero solo se imprimen si se piden
-con una bandera:
-
-| Bandera                       | Muestra                                          |
-| ----------------------------- | ------------------------------------------------ |
-| _(ninguna)_                   | solo errores y advertencias                      |
-| `--arbol-sintactico`          | el árbol sintáctico, colapsado                   |
-| `--arbol-sintactico-completo` | el árbol con la derivación literal, sin colapsar |
-| `--tabla-simbolos`            | la tabla de símbolos                             |
-| `--codigo-intermedio`         | los cuádruplos y la dirección de cada temporal   |
-
-Las banderas van después del archivo y se pueden combinar:
-
-```bash
-easy traduccion.easy --arbol-sintactico --tabla-simbolos --codigo-intermedio
-```
-
-Cómo se genera, por qué se eligieron los cuádruplos y el mismo programa escrito en
-las demás notaciones del temario (prefija, postfija, polaca, código P, triplos):
-**`generacion_ci.md`**.
-
 # Guía de Compilación y Ejecución
 
 ## Requisitos
@@ -64,61 +41,47 @@ powershell -ExecutionPolicy Bypass -File bin\instalar.ps1 -Desinstalar
 Funciona igual en PowerShell y en CMD, desde cualquier carpeta:
 
 ```powershell
+easy <archivo> [banderas ...]
+```
+
+### Tabla de banderas y --ayuda
+
+El **árbol sintáctico** (decorado con sus operadores y tipos), la **tabla de
+símbolos** (con las direcciones de memoria de cada dato) y el **código intermedio**
+(cuádruplos y temporales) se construyen siempre, pero solo se imprimen si se piden
+con una bandera:
+
+| Bandera                       | Muestra                                          |
+| ----------------------------- | ------------------------------------------------ |
+| _(ninguna)_                   | solo errores y advertencias                      |
+| `--arbol-sintactico`          | el árbol sintáctico, colapsado                   |
+| `--arbol-sintactico-completo` | el árbol con la derivación literal, sin colapsar |
+| `--tabla-simbolos`            | la tabla de símbolos                             |
+| `--codigo-intermedio`         | los cuádruplos y la dirección de cada temporal   |
+
+Esta misma tabla la imprime el compilador con `--ayuda`:
+
+| Comando                  | Muestra (sin analizar nada)                         |
+| ------------------------ | --------------------------------------------------- |
+| `easy --ayuda`           | la sintaxis de uso, ejemplos y la tabla de banderas |
+| `easy <archivo> --ayuda` | solo la tabla de banderas                           |
+
+**Ejemplo**
+
+```powershell
 easy muestra.easy                         # Solo errores y advertencias
 easy muestra.easy --arbol-sintactico      # + árbol sintáctico colapsado
 easy muestra.easy --arbol-sintactico-completo   # + árbol sin colapsar
 easy muestra.easy --tabla-simbolos        # + tabla de símbolos
 easy muestra.easy --codigo-intermedio     # + código de tres direcciones
 easy --compilar                                 # solo compila
+easy --ayuda                                    # sintaxis y tabla de banderas
 ```
 
-### Comando `easy`: Explicación del --arbol-sintactico y --arbol-sintactico-completo
+Las banderas también se pueden combinar:
 
-```bash
-easy <archivo> --arbol-sintactico-completo
-```
-
-Con `--arbol-sintactico` el árbol se imprime **colapsado**: se omiten los eslabones
-intermedios de la cascada de precedencia que no aportan nada, para que el árbol sea
-legible. Con `--arbol-sintactico-completo` se imprime la **derivación literal** de la
-gramática, mostrando todos los no terminales que se atraviesan.
-
-La diferencia, para la sentencia `ENT A = 5;`:
-
-**Con `--arbol-sintactico` (colapsado)**
-
-```
-DeclaracionVariable
-├─ TipoDato
-│  └─ <ENTERO_DATO: "ENT">
-├─ <VARIABLE: "A">
-├─ <IGUAL_ASIGNACION: "=">
-├─ Valor
-│  └─ <NUM_ENTERO: "5">
-└─ PuntoYComaVirtual
-   └─ <PUNTO_COMA: ";">
-```
-
-**Con `--arbol-sintactico-completo`**
-
-```
-DeclaracionVariable
-├─ TipoDato
-│  └─ <ENTERO_DATO: "ENT">
-├─ <VARIABLE: "A">
-├─ <IGUAL_ASIGNACION: "=">
-├─ Condicion
-│  └─ CondicionSimple
-│     └─ ExpresionAritmetica
-│        └─ ExpresionNivel1
-│           └─ ExpresionNivel2
-│              └─ ExpresionNivel3
-│                 └─ ExpresionNivel4
-│                    └─ ValorConArreglos
-│                       └─ Valor
-│                          └─ <NUM_ENTERO: "5">
-└─ PuntoYComaVirtual
-   └─ <PUNTO_COMA: ";">
+```powershell
+easy traduccion.easy --arbol-sintactico --tabla-simbolos --codigo-intermedio
 ```
 
 # Otras alternativas de compilación
@@ -207,7 +170,7 @@ en el `PATH`, pero `java` y `javac` no.**
 
 La trampa está en que `javacc.bat` por dentro es una sola línea:
 
-```bat
+```powershell
 java -classpath "%~dp0..\target\javacc.jar" javacc %1 %2 ...
 ```
 
