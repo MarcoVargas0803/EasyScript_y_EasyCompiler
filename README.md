@@ -35,6 +35,13 @@ resaltado de sintaxis, `Ctrl+/` comenta con `//` y las llaves y comillas se cier
 solas. Si VS Code no está instalado, el script solo lo avisa y sigue. Cómo
 modificarla o volver a empaquetarla: `vscode-easyscript\README.md`.
 
+También configura el **icono de los `.easy`** para Material Icon Theme: copia
+`vscode-easyscript\icons\easy.svg` a `%USERPROFILE%\.vscode\extensions\icons\` y agrega
+`"*.easy"` a `material-icon-theme.files.associations` en el `settings.json` de usuario.
+Antes guarda un respaldo en `bin\respaldo_settings_<fecha>.json`. Solo inserta esa línea
+y no toca tus demás ajustes ni sus comentarios. Con otros temas de iconos se usa el
+icono que declara la propia extensión.
+
 Para quitar el comando y la extensión:
 
 ```powershell

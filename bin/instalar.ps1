@@ -18,6 +18,12 @@
 #      ya estan abiertas (y VS Code completo) hay que cerrarlas y abrirlas.
 #   6. Instala (o desinstala) la extension vscode-easyscript\easyscript.vsix con
 #      el comando "code" de VS Code. Si VS Code no esta instalado, solo avisa.
+#   7. Icono de los .easy para Material Icon Theme: copia icons\easy.svg a
+#      %USERPROFILE%\.vscode\extensions\icons\ (el tema solo acepta iconos dentro
+#      de esa carpeta) y agrega "*.easy" a material-icon-theme.files.associations
+#      en el settings.json de USUARIO, con respaldo en bin\respaldo_settings_<fecha>.json.
+#      El settings.json se edita como texto, insertando o quitando una sola
+#      linea, para no perder sus comentarios ni su formato.
 #
 # Solo toca el PATH del usuario: el del sistema no se modifica y no hace falta
 # ser administrador. No usa setx, que recorta el valor a 1024 caracteres.
@@ -104,6 +110,77 @@ if (-not $code) {
     else { Write-Host "No se pudo instalar la extension de VS Code ($vsix)." -ForegroundColor Red }
 }
 
-if ($Desinstalar) { return }
+# ---------------------------------------------------------------------------
+# Icono de los .easy en Material Icon Theme. La ruta de la asociacion es
+# relativa a la carpeta dist de ese tema (extensions\pkief.material-icon-theme-*\dist),
+# por eso ../../icons/easy apunta a extensions\icons\easy.svg; va sin ".svg".
+# ---------------------------------------------------------------------------
+$dirIconos = Join-Path $env:USERPROFILE ".vscode\extensions\icons"
+$iconoDestino = Join-Path $dirIconos "easy.svg"
+$iconoOrigen = Join-Path (Split-Path $carpeta -Parent) "vscode-easyscript\icons\easy.svg"
+$settings = Join-Path $env:APPDATA "Code\User\settings.json"
+$claveAsoc = '"material-icon-theme.files.associations"'
+$entrada = '"*.easy": "../../icons/easy"'
+$patronEntrada = '(?m)^[ \t]*"\*\.easy"[ \t]*:[ \t]*"\.\./\.\./icons/easy"[ \t]*,?[ \t]*\r?\n'
+
+$texto = $null
+if (Test-Path -LiteralPath $settings) {
+    $texto = [System.IO.File]::ReadAllText($settings)
+}
+$nl = if ($texto -and $texto.Contains("`r`n")) { "`r`n" } else { "`n" }
+$original = $texto
+
+if ($Desinstalar) {
+    if (Test-Path -LiteralPath $iconoDestino) { Remove-Item -LiteralPath $iconoDestino }
+    if ($texto) {
+        $texto = [regex]::Replace($texto, $patronEntrada, "")
+        # Si la asociacion quedo vacia (la habia creado este script), se quita entera.
+        $texto = [regex]::Replace($texto,
+            '(?m)^[ \t]*"material-icon-theme\.files\.associations"[ \t]*:[ \t]*\{\s*\}[ \t]*,?[ \t]*\r?\n', "")
+    }
+} else {
+    New-Item -ItemType Directory -Force $dirIconos | Out-Null
+    Copy-Item -LiteralPath $iconoOrigen -Destination $iconoDestino -Force
+
+    if (-not $texto -or -not $texto.Trim()) {
+        $texto = "{" + $nl + "  " + $claveAsoc + ": {" + $nl + "    " + $entrada + $nl + "  }" + $nl + "}" + $nl
+    } elseif ([regex]::IsMatch($texto, $patronEntrada)) {
+        # Ya estaba: no se toca.
+    } else {
+        $asoc = [regex]::Match($texto, '"material-icon-theme\.files\.associations"\s*:\s*\{')
+        if ($asoc.Success) {
+            # Se agrega como PRIMERA entrada de la asociacion existente; lleva coma
+            # si el objeto ya tiene otras, para que al quitarla quede valido.
+            $resto = $texto.Substring($asoc.Index + $asoc.Length)
+            $coma = if ($resto.TrimStart().StartsWith("}")) { "" } else { "," }
+            $texto = $texto.Insert($asoc.Index + $asoc.Length, $nl + "    " + $entrada + $coma)
+        } else {
+            # Se agrega como primera propiedad del archivo, justo despues de "{".
+            $llave = $texto.IndexOf("{")
+            $resto = $texto.Substring($llave + 1)
+            # Si el archivo era {} vacio, la llave de cierre va en su propia linea.
+            $coma = if ($resto.TrimStart().StartsWith("}")) { $nl } else { "," }
+            $bloque = $nl + "  " + $claveAsoc + ": {" + $nl + "    " + $entrada + $nl + "  }" + $coma
+            $texto = $texto.Insert($llave + 1, $bloque)
+        }
+    }
+}
+
+if ($texto -ne $original) {
+    if ($original) {
+        $respaldoSettings = Join-Path $carpeta ("respaldo_settings_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".json")
+        Copy-Item -LiteralPath $settings -Destination $respaldoSettings
+        Write-Host "Respaldo del settings.json de VS Code: $respaldoSettings" -ForegroundColor DarkGray
+    } else {
+        New-Item -ItemType Directory -Force (Split-Path $settings -Parent) | Out-Null
+    }
+    [System.IO.File]::WriteAllText($settings, $texto, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+if ($Desinstalar) {
+    Write-Host "Se quito el icono de los .easy de Material Icon Theme." -ForegroundColor Green
+    return
+}
+Write-Host "Se configuro el icono de los .easy para Material Icon Theme." -ForegroundColor Green
 Write-Host "Abre una terminal NUEVA (en VS Code: cierralo por completo y vuelve a abrirlo) y prueba:" -ForegroundColor Cyan
 Write-Host "  easy Tests\codigo1.easy" -ForegroundColor Cyan

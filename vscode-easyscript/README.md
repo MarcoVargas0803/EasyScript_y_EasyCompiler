@@ -13,6 +13,18 @@ EasyCompiler.
 También configura `Ctrl+/` para comentar con `//`, el cierre automático de
 `{ } ( ) [ ] " '` y el plegado de bloques.
 
+## Icono
+
+`icons\easy.svg` es el icono de los archivos `.easy`. Es la versión de 32×32 de
+`icons\logo_easyCompiler.svg`, con los trazos en blanco explícito: el original usa
+`currentColor`, que VS Code pinta en negro. Además los trazos son un poco más
+gruesos (2.5) para que la "E" se lea a 16 px.
+
+- Con **Material Icon Theme**, `bin\instalar.ps1` lo copia a
+  `%USERPROFILE%\.vscode\extensions\icons\` y agrega la asociación
+  `"*.easy": "../../icons/easy"` en el `settings.json` de usuario.
+- Con otros temas, VS Code usa el icono que declara esta extensión en `package.json`.
+
 ## Instalación
 
 Se instala junto con el comando `easy`, desde la carpeta `EasyCompiler`:

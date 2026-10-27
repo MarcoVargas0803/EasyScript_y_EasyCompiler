@@ -30,3 +30,4 @@ actual_u2/
 
 # Respaldos del PATH de usuario que deja bin/instalar.ps1 (datos de este equipo)
 bin/respaldo_path_*.txt
+bin/respaldo_settings_*.json
