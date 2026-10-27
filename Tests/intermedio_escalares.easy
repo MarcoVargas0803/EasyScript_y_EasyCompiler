@@ -12,7 +12,7 @@
 //   d) Una variable que oculta a otra: en el codigo son dos nombres distintos
 //      (X y X$2), asi que la de dentro no pisa a la de fuera.
 //
-// Para ver el codigo:      .\build.ps1 -Ejecutar Tests\intermedio_escalares.easy -Codigo
+// Para ver el codigo:      easy Tests\intermedio_escalares.easy --codigo-intermedio
 //
 // Salida esperada al ejecutar el codigo (VerificadorIntermedio, cuya entrada
 // fija entrega 3 en el primer LEER y 5 en el segundo):

@@ -17,7 +17,7 @@ public class Main {
         try {
             // Verificamos que al ejecutar envíen el nombre del archivo
             if (args.length == 0) {
-                System.out.println("Error: Debes especificar un archivo. Ejemplo: java -cp out frontend.Main Tests\\codigo1.easy");
+                System.out.println("Error: Debes especificar un archivo. Ejemplo: easy Tests\\codigo1.easy");
                 System.out.println("Sin opciones solo se muestran los errores y advertencias.");
                 System.out.println("Opciones: --arbol-sintactico           Muestra el arbol sintactico (colapsado).");
                 System.out.println("          --arbol-sintactico-completo  Muestra el arbol con la derivacion literal,");

@@ -17,7 +17,7 @@
 //   h) BOOL guardado: la condicion se materializa en un valor.
 //   i) SI (VERDADERO) no emite ningun salto; SI (FALSO) solo uno.
 //
-// Para ver el codigo:      .\build.ps1 -Ejecutar Tests\intermedio_control.easy -Codigo
+// Para ver el codigo:      easy Tests\intermedio_control.easy --codigo-intermedio
 //
 // Salida esperada al ejecutar el codigo (no lee nada):
 //

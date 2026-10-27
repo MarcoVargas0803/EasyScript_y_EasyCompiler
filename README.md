@@ -21,7 +21,7 @@ con una bandera:
 Las banderas van después del archivo y se pueden combinar:
 
 ```bash
-java -cp out frontend.Main Tests\traduccion.easy --arbol-sintactico --tabla-simbolos --codigo-intermedio
+easy Tests\traduccion.easy --arbol-sintactico --tabla-simbolos --codigo-intermedio
 ```
 
 Cómo se genera, por qué se eligieron los cuádruplos y el mismo programa escrito en
@@ -46,6 +46,65 @@ Dos reglas del lenguaje que conviene saber antes de escribir código:
 | JDK | 21 o superior | `C:\Users\carme\.jdks\openjdk-21.0.2` |
 | JavaCC | 7.0.13 | `C:\javacc\javacc-javacc-7.0.13` |
 
+## El comando `easy` (lo habitual)
+
+`easy` compila el compilador cuando hace falta y analiza el programa que le pases.
+Funciona igual en PowerShell y en CMD, desde cualquier carpeta:
+
+```powershell
+easy Tests\muestra.easy                         # solo errores y advertencias
+easy Tests\muestra.easy --arbol-sintactico      # + árbol sintáctico
+easy Tests\muestra.easy --arbol-sintactico-completo   # + árbol sin colapsar
+easy Tests\muestra.easy --tabla-simbolos        # + tabla de símbolos
+easy Tests\muestra.easy --codigo-intermedio     # + código de tres direcciones
+easy --compilar                                 # solo compila, siempre
+```
+
+Las banderas son las de la tabla del inicio, se combinan y pasan tal cual a
+`frontend.Main`. Por debajo `easy` hace los mismos cuatro pasos de la Opción A,
+pero **solo recompila si cambió algo**: si `backend\EasyCompiler.jjt` o algún `.java`
+escrito a mano es más nuevo que la última compilación. Si no cambió nada, analiza
+directo (alrededor de un segundo en vez de unos veinte). `easy --compilar Tests\x.easy`
+fuerza la compilación antes de analizar.
+
+La salida de `jjtree`, `javacc` y `javac` se guarda en `out\compilacion.log`. Si un
+paso falla, `easy` la muestra completa.
+
+### Instalarlo (una sola vez)
+
+Desde la carpeta `EasyCompiler`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File bin\instalar.ps1
+```
+
+Agrega la carpeta `bin\` al `PATH` **de usuario**. El del sistema no se toca y no hace
+falta ser administrador. Antes guarda un respaldo del valor anterior en
+`bin\respaldo_path_<fecha>.txt`. Después hay que **abrir una terminal nueva**; en
+VS Code hay que cerrarlo por completo y volver a abrirlo, porque sus terminales
+heredan el entorno de cuando arrancó.
+
+Para quitarlo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File bin\instalar.ps1 -Desinstalar
+```
+
+Cómo está armado:
+
+| Archivo | Qué hace |
+|---|---|
+| `bin\easy.cmd` | Lo que encuentra el `PATH`. Llama a `lanzador.ps1` con la política de scripts relajada **solo para ese proceso**. |
+| `bin\lanzador.ps1` | Busca el JDK y JavaCC con rutas completas, decide si compilar y ejecuta `frontend.Main`. |
+| `bin\instalar.ps1` | Agrega o quita `bin\` del `PATH` de usuario. |
+
+El script **no** se llama `easy.ps1` a propósito. Si se llamara así, PowerShell lo
+preferiría sobre `easy.cmd` y `easy` dependería de la política de scripts del equipo.
+En un equipo con la política por defecto (`Restricted`), fallaría.
+
+`easy` no depende de que `java`, `javac`, `jjtree` o `javacc` estén en el `PATH`:
+busca el JDK en `JAVA_HOME` y, si no, en las rutas de la tabla de requisitos.
+
 ## Si la terminal no reconoce los comandos
 
 Es el tropiezo más común, y casi siempre es lo mismo: **`javacc` y `jjtree` sí están
@@ -69,13 +128,25 @@ Get-Command java, javac, javacc, jjtree -ErrorAction SilentlyContinue | Select-O
 
 Lo que no aparezca en esa lista es lo que falta.
 
-> **Sobre las variables de `build.ps1`:** dentro de ese script hay `$java`, `$javac` y
+> **`%JAVA_HOME%\bin` en el `PATH` y aun así no encuentra `java`:** en el registro,
+> el `PATH` de usuario puede estar guardado como texto simple (`REG_SZ`) en vez de
+> texto expandible (`REG_EXPAND_SZ`). Con `REG_SZ`, Windows no reemplaza
+> `%JAVA_HOME%` por la ruta del JDK y la entrada no sirve. `bin\instalar.ps1` lo deja
+> como `REG_EXPAND_SZ` sin cambiar su contenido. Para revisarlo:
+>
+> ```powershell
+> [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment').GetValueKind('Path')
+> ```
+>
+> Debe decir `ExpandString`.
+
+> **Sobre las variables de `bin\lanzador.ps1`:** dentro de ese script hay `$java`, `$javac` y
 > `$JAVACC`. Son variables **locales al script**: existen mientras se ejecuta y
-> desaparecen al terminar. Si copias una línea de `build.ps1` y la pegas en una
+> desaparecen al terminar. Si copias una línea del script y la pegas en una
 > terminal, `$java` está vacío y el comando no hace nada. No es que "PowerShell no
 > reconozca las variables": es que ahí no existen.
 
-## Opción A — preparar la sesión y usar los comandos cortos
+## Opción A — los cuatro comandos a mano, con la sesión preparada
 
 Esto hay que hacerlo **una vez en cada terminal que abras**. No es permanente.
 
@@ -176,26 +247,6 @@ exactamente lo que hacen los `.bat` por dentro.
 El `&` del principio es el operador de llamada de PowerShell, necesario cuando la
 ruta del ejecutable está en una variable o lleva espacios.
 
-## Opción C — el script (lo habitual)
-
-`build.ps1` hace los tres pasos de compilación, busca el JDK solo y no depende del
-`PATH`:
-
-```powershell
-.\build.ps1                                      # solo compila
-.\build.ps1 -Ejecutar Tests\muestra.easy                # compila y analiza (solo errores)
-.\build.ps1 -Ejecutar Tests\muestra.easy -Arbol         # + árbol sintáctico
-.\build.ps1 -Ejecutar Tests\muestra.easy -Completo      # + árbol con la derivación sin colapsar
-.\build.ps1 -Ejecutar Tests\muestra.easy -Tabla         # + tabla de símbolos
-.\build.ps1 -Ejecutar Tests\muestra.easy -Codigo        # + código de tres direcciones
-```
-
-Si PowerShell se niega a ejecutarlo por la política de scripts:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1 -Ejecutar Tests\muestra.easy
-```
-
 ## Sintaxis general
 
 La construcción tiene **tres pasos**, porque la gramática se escribe en un archivo
@@ -242,7 +293,7 @@ Si sale eso, las cuatro herramientas están bien encadenadas.
 ## Variante: ver la derivación completa
 
 ```bash
-java -cp out frontend.Main <archivo> --arbol-sintactico-completo
+easy <archivo> --arbol-sintactico-completo
 ```
 
 Con `--arbol-sintactico` el árbol se imprime **colapsado**: se omiten los eslabones
@@ -301,11 +352,10 @@ INICIO{
 Se compila y ejecuta así:
 
 ```bash
-jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
-javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
-javac -encoding UTF-8 -d out backend\*.java frontend\*.java
-java -cp out frontend.Main "Tests\Hello world.easy"
+easy "Tests\Hello world.easy"
 ```
+
+(o con los cuatro comandos de la Opción A, cambiando el archivo del paso 4).
 
 Y produce solo el resultado:
 
@@ -318,7 +368,7 @@ Y produce solo el resultado:
 Para ver además el árbol, se vuelve a ejecutar con la bandera:
 
 ```bash
-java -cp out frontend.Main "Tests\Hello world.easy" --arbol-sintactico
+easy "Tests\Hello world.easy" --arbol-sintactico
 ```
 
 ```

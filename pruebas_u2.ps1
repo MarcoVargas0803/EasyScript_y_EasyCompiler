@@ -19,7 +19,7 @@
 #   .\pruebas_u2.ps1 -Comparar    Captura en actual_u2\ y compara contra la
 #                                 linea base, archivo por archivo
 #
-# Siempre compila primero con .\build.ps1, para que lo medido corresponda al
+# Siempre compila primero con bin\lanzador.ps1 --compilar, para que lo medido corresponda al
 # codigo actual. Usa rutas completas al JDK y NO modifica $env:Path.
 #
 # Codigo de salida: 0 si todo bien; 1 si falla la compilacion, la linea base ya
@@ -32,7 +32,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# JDK: la misma busqueda que build.ps1. JAVA_HOME gana si esta definido.
+# JDK: la misma busqueda que bin\lanzador.ps1. JAVA_HOME gana si esta definido.
 $JDKS = @(
     $env:JAVA_HOME,
     "C:\Users\carme\.jdks\openjdk-21.0.2",
@@ -172,11 +172,10 @@ try {
         exit 1
     }
 
-    Write-Host "== Compilando con build.ps1 ==" -ForegroundColor Cyan
-    try {
-        & (Join-Path $proyecto "build.ps1")
-    } catch {
-        Write-Host ("La compilacion fallo; no se mide nada. " + $_) -ForegroundColor Red
+    Write-Host "== Compilando con bin\lanzador.ps1 --compilar ==" -ForegroundColor Cyan
+    & (Join-Path $proyecto "bin\lanzador.ps1") --compilar
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "La compilacion fallo; no se mide nada." -ForegroundColor Red
         exit 1
     }
     Set-Location $proyecto

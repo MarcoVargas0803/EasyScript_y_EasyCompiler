@@ -5,7 +5,7 @@ representaciones de código intermedio y **2.3** esquemas de generación. Las ci
 Aho, Lam, Sethi y Ullman, *Compiladores: principios, técnicas y herramientas*, 2a ed.
 
 ```powershell
-.\build.ps1 -Ejecutar Tests\intermedio_control.easy -Codigo    # cuádruplos + direcciones de temporales
+easy Tests\intermedio_control.easy --codigo-intermedio    # cuádruplos + direcciones de temporales
 ```
 
 ## 1. Decisiones
@@ -166,7 +166,7 @@ M[1][0]++;                             t3 = 1 * 2      t5 = t4 * 4     t7 = t6 +
 
 ## 4. Cómo se prueba
 
-`pruebas_u2.ps1` compila con `build.ps1` y guarda, por cada programa de prueba, la consola,
+`pruebas_u2.ps1` compila con `bin\lanzador.ps1 --compilar` y guarda, por cada programa de prueba, la consola,
 los cuádruplos y la **traza**: lo que el código hace al ejecutarlo en `SimuladorCuadruplos`.
 Con `-Comparar` muestra las diferencias contra la línea base. Un cambio de esta unidad puede
 cambiar los cuádruplos, pero la traza solo puede cambiar donde corrige un defecto.

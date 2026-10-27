@@ -15,7 +15,7 @@
 //   e) LEER("mensaje" + Variable): el mensaje se imprime y despues se lee.
 //      El '+' no concatena nada: solo separa el mensaje del destino.
 //
-// Para ver el codigo:      .\build.ps1 -Ejecutar Tests\intermedio_esquemas.easy -Codigo
+// Para ver el codigo:      easy Tests\intermedio_esquemas.easy --codigo-intermedio
 //
 // Salida esperada al ejecutar el codigo (VerificadorIntermedio, cuya entrada
 // fija entrega 3 en el primer LEER y 5 en el segundo):

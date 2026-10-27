@@ -4,7 +4,7 @@
 // No debe producir ningun error ni advertencia, y el codigo de tres direcciones
 // que genera se revisa con:
 //
-//     .\build.ps1 -Ejecutar Tests\traduccion.easy -Codigo
+//     easy Tests\traduccion.easy --codigo-intermedio
 
 INICIO{
     ENT A = 2;

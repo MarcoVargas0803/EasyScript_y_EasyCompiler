@@ -9,7 +9,7 @@
 //
 // Lo que se verifica no se ve en la consola sino en el codigo generado:
 //
-//     .\build.ps1 -Ejecutar Tests\precedencia.easy -Codigo
+//     easy Tests\precedencia.easy --codigo-intermedio
 //
 // Resultado esperado, instruccion por instruccion:
 //

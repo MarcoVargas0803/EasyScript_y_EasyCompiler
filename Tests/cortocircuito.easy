@@ -3,7 +3,7 @@
 // Comprueba el cortocircuito de && y ||, y las dos formas en que puede
 // acabar una condicion: dirigiendo un salto o guardada en una variable.
 //
-// Para ver el codigo:      .\build.ps1 -Ejecutar Tests\cortocircuito.easy -Codigo
+// Para ver el codigo:      easy Tests\cortocircuito.easy --codigo-intermedio
 //
 // Cada comparacion es UNA instruccion que solo salta hacia el lado que no
 // cae (Aho, seccion 6.6.5). El primer SI debe quedar asi:
