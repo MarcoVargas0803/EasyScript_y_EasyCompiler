@@ -152,6 +152,12 @@ public final class AlgoritmosOptimizacion {
             }
         }
 
+        // Cierre de F6: reutilizar temporales. Va al final y una sola vez,
+        // porque las demas fases suponen que cada temporal tiene un solo valor.
+        if (activas.size() == TODAS_LAS_FASES) {
+            AsignacionesMuertas.compactar(programa, bitacora);
+        }
+
         List<String> rotas = Cuadruplos.etiquetasRotas(programa.codigo);
         if (!rotas.isEmpty()) {
             throw new IllegalStateException("la optimizacion dejo saltos a etiquetas inexistentes: " + rotas);

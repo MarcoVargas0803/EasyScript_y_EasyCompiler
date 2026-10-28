@@ -71,6 +71,31 @@ final class Cuadruplos {
             && !"[]=".equals(op) && !"imprimir".equals(op) && !"leer".equals(op);
     }
 
+    /**
+     * Una division o un modulo cuyo divisor no es una constante distinta de
+     * cero: puede fallar al ejecutarse. Ni F4 la ejecuta de mas (sacandola de
+     * un bucle) ni F6 la quita aunque su resultado no se use: en los dos casos
+     * el programa dejaria de comportarse igual.
+     */
+    static boolean puedeFallar(Cuadruplo c) {
+        if (!"/".equals(c.operador) && !"%".equals(c.operador)) {
+            return false;
+        }
+        Object d;
+        try {
+            d = backend.SimuladorCuadruplos.valorLiteral(c.arg2);
+        } catch (RuntimeException e) {
+            return true;
+        }
+        if (d instanceof Long) {
+            return ((Long) d).longValue() == 0;
+        }
+        if (d instanceof Double) {
+            return ((Double) d).doubleValue() == 0.0;
+        }
+        return true;
+    }
+
     // ------------------------------------------------------------------
     // Usos y definiciones
     // ------------------------------------------------------------------

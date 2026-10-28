@@ -6,7 +6,9 @@
 //   b) recorrido de un arreglo: el desplazamiento I * 4 se reduce a sumas
 //   c) matriz recorrida con dos PARA anidados
 //   d) MIENTRAS que no da ninguna vuelta con una division invariante entre
-//      cero: NO se puede sacar del ciclo, o fallaria un programa correcto
+//      cero: NO se puede sacar del ciclo, o fallaria un programa correcto.
+//      Al propagar constantes entre bloques (F5) se descubre que Divisor vale
+//      0 y se avisa con OPT-01, aunque esa linea nunca llegue a ejecutarse.
 //   e) MIENTRAS con un invariante (N * N)
 //
 // Salida esperada, con la entrada fija del simulador (cada LEER recibe

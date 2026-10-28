@@ -92,7 +92,7 @@ final class OptimizacionBucles implements Fase {
                 Cuadruplo c = codigo.get(i.intValue());
                 if (invariantes.contains(c) || !Cuadruplos.esCalculo(c) || !Cuadruplos.esTemporal(c.resultado)
                         || EliminacionRedundancias.cuenta(asignaciones, c.resultado) != 1
-                        || seUsaFuera(codigo, c.resultado, dentro) || puedeFallar(c)) {
+                        || seUsaFuera(codigo, c.resultado, dentro) || Cuadruplos.puedeFallar(c)) {
                     continue;
                 }
                 boolean todos = true;
@@ -124,29 +124,6 @@ final class OptimizacionBucles implements Fase {
         for (Cuadruplo c : invariantes) {
             bitacora.registrar(clave(), "invariante del bucle " + cabecera + ", sale al bloque de iniciacion",
                 c.comentario, c.comentario + "  (antes de " + cabecera + ")");
-        }
-        return true;
-    }
-
-    /**
-     * Una division o un modulo cuyo divisor no es una constante distinta de
-     * cero: ejecutarlo de mas podria fallar donde el original no fallaba.
-     */
-    private static boolean puedeFallar(Cuadruplo c) {
-        if (!"/".equals(c.operador) && !"%".equals(c.operador)) {
-            return false;
-        }
-        Object d;
-        try {
-            d = SimuladorCuadruplos.valorLiteral(c.arg2);
-        } catch (RuntimeException e) {
-            return true;
-        }
-        if (d instanceof Long) {
-            return ((Long) d).longValue() == 0;
-        }
-        if (d instanceof Double) {
-            return ((Double) d).doubleValue() == 0.0;
         }
         return true;
     }

@@ -354,6 +354,50 @@ final class GrafoFlujo {
         return resultado;
     }
 
+    /**
+     * Vectores de una region (un bucle): {A, R, B}. A y R son la union de los
+     * de sus bloques. B no: una variable que un bloque usa antes de asignarla
+     * puede estar ya asignada por otro bloque anterior de la region, asi que B
+     * se recalcula recorriendo los caminos de la region desde su cabecera.
+     */
+    List<Set<String>> vectoresDeRegion(Bucle bucle) {
+        Set<String> a = new TreeSet<String>();
+        Set<String> r = new TreeSet<String>();
+        Map<Integer, Set<String>> entrada = new HashMap<Integer, Set<String>>();
+        for (Integer n : bucle.bloques) {
+            Bloque b = bloques.get(n.intValue());
+            a.addAll(b.asignadas);
+            r.addAll(b.referidas);
+            entrada.put(n, new TreeSet<String>());
+        }
+        boolean cambio = true;
+        while (cambio) {
+            cambio = false;
+            for (Integer n : bucle.bloques) {
+                Bloque b = bloques.get(n.intValue());
+                Set<String> salida = new TreeSet<String>();
+                for (Integer s : b.sucesores) {
+                    // La vuelta a la cabecera cierra el bucle: no es "antes".
+                    if (bucle.contiene(s.intValue()) && s.intValue() != bucle.cabecera) {
+                        salida.addAll(entrada.get(s));
+                    }
+                }
+                Set<String> nueva = new TreeSet<String>(salida);
+                nueva.removeAll(b.definidas);
+                nueva.addAll(b.antes);
+                if (!nueva.equals(entrada.get(n))) {
+                    entrada.put(n, nueva);
+                    cambio = true;
+                }
+            }
+        }
+        List<Set<String>> v = new ArrayList<Set<String>>();
+        v.add(a);
+        v.add(r);
+        v.add(entrada.get(Integer.valueOf(bucle.cabecera)));
+        return v;
+    }
+
     /** Descripcion para --bitacora-optimizacion. */
     List<String> describir() {
         List<String> lineas = new ArrayList<String>();
@@ -382,6 +426,8 @@ final class GrafoFlujo {
                 primero = false;
             }
             lineas.add(sb.append("}").toString());
+            List<Set<String>> v = vectoresDeRegion(bucle);
+            lineas.add("      region: A=" + v.get(0) + "  R=" + v.get(1) + "  B=" + v.get(2));
         }
         return lineas;
     }

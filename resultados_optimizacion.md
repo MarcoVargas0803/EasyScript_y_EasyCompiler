@@ -21,9 +21,8 @@ salidas, mismas lecturas y mismo valor final de cada variable del usuario. Si el
 simulador corta un programa que no termina (`codigo2.easy`), basta con que una salida
 sea prefijo de la otra. Una sola traza distinta hace fallar el arnés.
 
-Como el valor final de las variables del usuario es observable, se consideran **vivas
-al terminar el programa**: solo se elimina una asignación a una de ellas si se pisa
-antes de usarse. `LEER` e `IMPRIMIR` nunca se eliminan.
+El valor final de las variables del usuario es observable: se consideran **vivas al
+terminar el programa**.
 
 ### Métricas
 
@@ -53,15 +52,12 @@ Las dinámicas usan la entrada fija del simulador: cada `LEER` recibe 3, 5, 1, 0
 | 10    | `/` `%` `imprimir` `leer`                                       |
 | 20    | `**`                                                            |
 
-Son unidades relativas. Se cambian sin recompilar con
-`VerificadorOptimizacion -costos archivo.properties` (`operador=costo`; `si_` vale
-para todos los saltos condicionales).
+Unidades relativas; se cambian con `VerificadorOptimizacion -costos archivo.properties`.
 
 ### Banco de pruebas
 
-Además de los 30 programas de `Tests\` (13 se pueden simular; los demás tienen
-errores a propósito), `Tests\optimizacion\` tiene un programa por fase. Cada uno trae
-en su cabecera la salida esperada, que no debe cambiar al optimizar:
+Los 13 programas simulables de `Tests\` y uno por fase en `Tests\optimizacion\`, con
+su salida esperada en la cabecera:
 
 | Programa                | Casos                                                                 |
 | ----------------------- | --------------------------------------------------------------------- |
@@ -71,8 +67,6 @@ en su cabecera la salida esperada, que no debe cambiar al optimizar:
 | `opt_bucles`            | invariantes, recorrido de arreglo y matriz, división en ciclo sin vueltas |
 | `opt_regiones`          | SI que comparte etiqueta con un MIENTRAS, constantes entre bloques    |
 | `opt_muertas`           | asignaciones muertas en un camino, en todos, y `LEER` sin usar        |
-
-Las cifras de cada fase están en el **resumen** al final del documento.
 
 ## Fase 1 — Ejecución en tiempo de compilación (`PlegadoConstantes`)
 
@@ -88,7 +82,6 @@ Tabla 7.1, repitiendo hasta que nada cambie:
 | 4    | `res = v`                               | sale (res, ·) de T; entra (res, v) si v es constante     |
 
 Decisiones propias de este código intermedio:
-
 - Un temporal plegado solo se elimina si todos sus usos están en el mismo bloque; si
   no, queda como copia `t = valor` (otro bloque lo necesita escrito).
 - Las `CONST_` tienen una sola asignación: si es constante, se sustituyen en
@@ -103,10 +96,6 @@ Ejemplo (`opt_constantes`, caso a): las 13 instrucciones de
 `A = 2 + 3; B = A * 4; C = B - CONST_Base; IMPRIMIR("a: " + A + " " + B + " " + C)`
 quedan en `A = 5`, `B = 20`, `C = 10`, `imprimir "a: 5 20 10"`.
 
-`codigo2` no termina: el simulador lo corta a los 20 000 pasos y su cifra no cambia.
-F1 no actúa dentro de los bucles cuando el valor viene de otro bloque (`opt_bucles`,
-`opt_regiones` siguen igual): eso le toca a F5.
-
 ## Fase 2 — Eliminación de redundancias (`EliminacionRedundancias`)
 
 Algoritmo de dependencias, dentro de cada bloque básico: todo nombre empieza con
@@ -118,7 +107,6 @@ j en adelante, y las `COMO` se borran al final. Que las dependencias coincidan
 garantiza que ningún operando cambió entre j e i.
 
 Para este código intermedio:
-
 - Un arreglo es un nombre más: `V[k] = x` actualiza `dep(V)`, así que una lectura de
   `V` después de una escritura nunca se confunde con una anterior (`opt_redundancias`, c).
 - `LEER` e `IMPRIMIR` nunca son equivalentes a nada.
@@ -126,9 +114,7 @@ Para este código intermedio:
   cambia por la copia `res_i = res_j`.
 - Mirilla de copias: `t = a op b ; X = t`, con t usado solo ahí, pasa a `X = a op b`.
 
-Ejemplos: `(X + Y) * (X + Y)` calcula `X + Y` una vez; `V[X] + V[X]` calcula la
-dirección y lee el elemento una vez; `t = Contador + 1 ; Contador = t` queda en
-`Contador = Contador + 1`.
+Ejemplo: `(X + Y) * (X + Y)` calcula `X + Y` una vez; `V[X] + V[X]` lee el elemento una vez.
 
 ## Fase 3 — Reordenación de operaciones (`ReordenacionOperaciones`)
 
@@ -161,18 +147,46 @@ a él (caso real: el final de un `SI` comparte etiqueta con el `MIENTRAS` que si
   arreglos (`I * 4`) y matrices (`(F*3 + C) * 4` → `+4` por vuelta de `C`, `+12`
   por vuelta de `F`).
 
+## Fase 5 — Optimización de regiones (`OptimizacionRegiones`)
+
+Lista de regiones: los bucles del más interno al más externo y al final el programa
+entero; de cada una se calculan A y R (unión de sus bloques) y B (recalculado por
+caminos), visibles en la bitácora. F1-F3 ya trabajan por bloque y F4 llena el bloque
+de iniciación; F5 añade lo que solo se ve entre bloques:
+
+- **Constantes entre bloques**: un nombre vale una constante a la entrada de un
+  bloque si vale esa misma constante a la salida de todos sus predecesores.
+- **Bloques inalcanzables** (los que dejan los saltos decididos al compilar).
+- **Mirilla de saltos**: `ir_a` a la siguiente, salto a un salto, salto sobre un
+  salto y etiquetas sin uso.
+
+Al llevar constantes entre bloques, F1 puede descubrir divisiones entre cero nuevas:
+`opt_bucles` (d) avisa `OPT-01` en un ciclo que nunca se ejecuta, como en el libro.
+
+## Fase 6 — Asignaciones muertas (`AsignacionesMuertas`)
+
+1) En el bloque: otra asignación a v sin uso en medio → muerta; un uso → viva.
+2) Si no se decide, por caminos: B[v] = 1 → viva; B[v] = 0 y A[v] = 1 → camino
+abandonado; caminos agotados → muerta. Las variables del usuario están vivas al final
+del programa. Nunca se quitan `LEER`, `IMPRIMIR`, escrituras en arreglos ni una
+división que podría fallar.
+
+Al cerrar, **compactación de temporales**: coloreado del grafo de interferencias (dos
+temporales interfieren si uno se asigna mientras el otro está vivo); los del mismo
+tipo que no interfieren comparten nombre y dirección.
+
 ## Resumen por fase
 
 19 programas optimizables. Se excluye `codigo2`, que no termina: el simulador lo
 corta a los 20 000 pasos. Las cifras son acumuladas (F2 incluye F1, etc.).
 
-| Métrica                 | F0    | F1    | F2    | F3    | F4    | F0→F4   |
-| ----------------------- | ----- | ----- | ----- | ----- | ----- | ------- |
-| Instrucciones           | 903   | 760   | 701   | 699   | 706   | −21.8 % |
-| Instr. ejecutadas       | 1 451 | 1 307 | 1 185 | 1 183 | 1 178 | −18.8 % |
-| Costo dinámico          | 3 995 | 3 464 | 3 312 | 3 267 | 3 201 | −19.9 % |
-| Bytes de temporales     | 1 941 | 1 252 | 1 012 | 1 004 | 1 012 | −47.9 % |
-| Σ máx. temporales vivos | 31    | 26    | 28    | 27    | 30    | −3.2 %  |
+| Métrica                 | F0    | F1    | F2    | F3    | F4    | F5    | F6    | F0→F6   |
+| ----------------------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ------- |
+| Instrucciones           | 903   | 760   | 701   | 699   | 706   | 564   | 545   | −39.6 % |
+| Instr. ejecutadas       | 1 451 | 1 307 | 1 185 | 1 183 | 1 178 | 1 047 | 1 021 | −29.6 % |
+| Costo dinámico          | 3 995 | 3 464 | 3 312 | 3 267 | 3 201 | 2 867 | 2 839 | −28.9 % |
+| Bytes de temporales     | 1 941 | 1 252 | 1 012 | 1 004 | 1 012 | 784   | 152   | −92.2 % |
+| Σ máx. temporales vivos | 31    | 26    | 28    | 27    | 30    | 26    | 25    | −19.4 % |
 
 F2 sube los temporales vivos: reutilizar un valor alarga su vida (el precio clásico
 de eliminar subexpresiones comunes). F3 recupera una parte con el orden de evaluación.
@@ -181,7 +195,5 @@ todo el bucle: más instrucciones escritas y más temporales vivos, menos costo 
 
 ## Depuración
 
-Toda transformación pasa por `Bitacora.registrar`: un punto de interrupción ahí
-muestra en vivo la fase, la regla y la instrucción antes y después. Para aislar la
-fase que introduce un fallo: `.\pruebas_opt.ps1 -Comparar -Hasta k`, subiendo `k`
-hasta que aparezca.
+Toda transformación pasa por `Bitacora.registrar` (punto de interrupción para verla en
+vivo). Para aislar la fase que introduce un fallo: `.\pruebas_opt.ps1 -Comparar -Hasta k`.
