@@ -184,52 +184,12 @@ public class SimuladorCuadruplos {
             asignar(c.resultado, valor(c.arg1));
             return siguiente;
         }
-        if (esAritmetico(op)) {
-            asignar(c.resultado, aritmetica(op, valor(c.arg1), valor(c.arg2)));
+        if (esUnario(op)) {
+            asignar(c.resultado, evaluar(op, valor(c.arg1), null));
             return siguiente;
         }
-        if (esRelacional(op)) {
-            asignar(c.resultado, Boolean.valueOf(comparar(op, valor(c.arg1), valor(c.arg2))));
-            return siguiente;
-        }
-        if ("&&".equals(op) || "||".equals(op)) {
-            boolean a = booleano(valor(c.arg1));
-            boolean b = booleano(valor(c.arg2));
-            asignar(c.resultado, Boolean.valueOf("&&".equals(op) ? (a && b) : (a || b)));
-            return siguiente;
-        }
-        if ("-u".equals(op)) {
-            Object v = valor(c.arg1);
-            if (v instanceof Long) {
-                asignar(c.resultado, Long.valueOf(-((Long) v).longValue()));
-            } else if (v instanceof Double) {
-                asignar(c.resultado, Double.valueOf(-((Double) v).doubleValue()));
-            } else {
-                throw new ErrorEjecucion("menos unario sobre un valor no numerico (" + texto(v) + ")");
-            }
-            return siguiente;
-        }
-        if ("!!".equals(op)) {
-            asignar(c.resultado, Boolean.valueOf(!booleano(valor(c.arg1))));
-            return siguiente;
-        }
-        if ("ampliar".equals(op)) {
-            Object v = valor(c.arg1);
-            if (v instanceof Long) {
-                asignar(c.resultado, Double.valueOf(((Long) v).doubleValue()));
-            } else if (v instanceof Double) {
-                asignar(c.resultado, v);
-            } else {
-                throw new ErrorEjecucion("ampliar sobre un valor no numerico (" + texto(v) + ")");
-            }
-            return siguiente;
-        }
-        if ("a_texto".equals(op)) {
-            asignar(c.resultado, texto(valor(c.arg1)));
-            return siguiente;
-        }
-        if ("concat".equals(op)) {
-            asignar(c.resultado, texto(valor(c.arg1)) + texto(valor(c.arg2)));
+        if (esBinario(op)) {
+            asignar(c.resultado, evaluar(op, valor(c.arg1), valor(c.arg2)));
             return siguiente;
         }
         if ("ir_a".equals(op)) {
@@ -304,6 +264,24 @@ public class SimuladorCuadruplos {
         if (casilla == null || "-".equals(casilla)) {
             throw new ErrorEjecucion("falta un operando");
         }
+        Object literal = valorLiteral(casilla);
+        if (literal != null) {
+            return literal;
+        }
+        Object v = memoria.get(casilla);
+        lecturasMemoria++;
+        return (v == null) ? Long.valueOf(0) : v;
+    }
+
+    /**
+     * Valor de un literal escrito en una casilla ("texto", 'a', VERDADERO, 12,
+     * 3.5), o null si la casilla no es un literal. Lo usa tambien el
+     * optimizador para leer los literales igual que se ejecutan.
+     */
+    public static Object valorLiteral(String casilla) {
+        if (casilla == null || "-".equals(casilla)) {
+            return null;
+        }
         if (casilla.startsWith("\"")) {
             return desescaparTexto(casilla);
         }
@@ -326,9 +304,7 @@ public class SimuladorCuadruplos {
         if (casilla.matches("-?\\d*\\.\\d+") || casilla.matches("-?\\d+\\.\\d+")) {
             return Double.valueOf(casilla);
         }
-        Object v = memoria.get(casilla);
-        lecturasMemoria++;
-        return (v == null) ? Long.valueOf(0) : v;
+        return null;
     }
 
     private void asignar(String nombre, Object v) {
@@ -352,7 +328,7 @@ public class SimuladorCuadruplos {
         throw new ErrorEjecucion("desplazamiento no entero (" + texto(v) + ")");
     }
 
-    private boolean booleano(Object v) {
+    private static boolean booleano(Object v) {
         if (v instanceof Boolean) {
             return ((Boolean) v).booleanValue();
         }
@@ -409,6 +385,86 @@ public class SimuladorCuadruplos {
     // ------------------------------------------------------------------
     // Operaciones
     // ------------------------------------------------------------------
+
+    private static boolean esUnario(String op) {
+        return "-u".equals(op) || "!!".equals(op) || "ampliar".equals(op) || "a_texto".equals(op);
+    }
+
+    private static boolean esBinario(String op) {
+        return esAritmetico(op) || esRelacional(op) || "&&".equals(op) || "||".equals(op)
+            || "concat".equals(op);
+    }
+
+    /**
+     * Calcula el resultado de un operador sobre valores ya conocidos (b es null
+     * en los unarios). Es la unica definicion de lo que hace cada operador: la
+     * usan la ejecucion y el optimizador cuando calcula al compilar, asi que un
+     * valor plegado es exactamente el que se obtendria al ejecutar.
+     *
+     * Lanza una RuntimeException si la operacion falla (division entre cero,
+     * tipos que no casan) o IllegalArgumentException si el operador no calcula
+     * un valor.
+     */
+    public static Object evaluar(String op, Object a, Object b) {
+        if (esAritmetico(op)) {
+            return aritmetica(op, a, b);
+        }
+        if (esRelacional(op)) {
+            return Boolean.valueOf(comparar(op, a, b));
+        }
+        if ("&&".equals(op) || "||".equals(op)) {
+            boolean x = booleano(a);
+            boolean y = booleano(b);
+            return Boolean.valueOf("&&".equals(op) ? (x && y) : (x || y));
+        }
+        if ("-u".equals(op)) {
+            if (a instanceof Long) {
+                return Long.valueOf(-((Long) a).longValue());
+            } else if (a instanceof Double) {
+                return Double.valueOf(-((Double) a).doubleValue());
+            }
+            throw new ErrorEjecucion("menos unario sobre un valor no numerico (" + texto(a) + ")");
+        }
+        if ("!!".equals(op)) {
+            return Boolean.valueOf(!booleano(a));
+        }
+        if ("ampliar".equals(op)) {
+            if (a instanceof Long) {
+                return Double.valueOf(((Long) a).doubleValue());
+            } else if (a instanceof Double) {
+                return a;
+            }
+            throw new ErrorEjecucion("ampliar sobre un valor no numerico (" + texto(a) + ")");
+        }
+        if ("a_texto".equals(op)) {
+            return texto(a);
+        }
+        if ("concat".equals(op)) {
+            return texto(a) + texto(b);
+        }
+        throw new IllegalArgumentException("el operador no calcula un valor: " + op);
+    }
+
+    /**
+     * Resultado de un salto condicional con operandos ya conocidos: true si
+     * salta. (si_falso, si_verdadero, si_igual y si_<relop>.)
+     */
+    public static boolean saltaria(String op, Object a, Object b) {
+        if ("si_falso".equals(op)) {
+            return !booleano(a);
+        }
+        if ("si_verdadero".equals(op)) {
+            return booleano(a);
+        }
+        if ("si_igual".equals(op)) {
+            return comparar("==", a, b);
+        }
+        String relop = op.substring(3);
+        if (!esRelacional(relop)) {
+            throw new IllegalArgumentException("salto desconocido: " + op);
+        }
+        return comparar(relop, a, b);
+    }
 
     private static boolean esAritmetico(String op) {
         return "+".equals(op) || "-".equals(op) || "*".equals(op)

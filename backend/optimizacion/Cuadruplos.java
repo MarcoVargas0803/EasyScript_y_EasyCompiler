@@ -126,9 +126,18 @@ final class Cuadruplos {
     static List<Cuadruplo> copiar(List<Cuadruplo> codigo) {
         List<Cuadruplo> copia = new ArrayList<Cuadruplo>();
         for (Cuadruplo c : codigo) {
-            copia.add(new Cuadruplo(c.indice, c.operador, c.arg1, c.arg2, c.resultado, c.comentario));
+            Cuadruplo d = new Cuadruplo(c.indice, c.operador, c.arg1, c.arg2, c.resultado, c.comentario);
+            heredarOrigen(d, c);
+            copia.add(d);
         }
         return copia;
+    }
+
+    /** Copia linea, columna y texto fuente de 'origen' a 'destino'. */
+    static void heredarOrigen(Cuadruplo destino, Cuadruplo origen) {
+        destino.linea = origen.linea;
+        destino.columna = origen.columna;
+        destino.fuente = origen.fuente;
     }
 
     /** Deja cada indice igual a su posicion, despues de borrar o insertar. */

@@ -34,6 +34,16 @@ public class Cuadruplo {
     /** La misma instruccion escrita como se leeria: "t1 = B * C". */
     public String comentario;
 
+    /**
+     * Origen en el codigo fuente: linea y columna de la sentencia (o de la
+     * condicion) que genero la instruccion, y el texto de esa linea. Sirve
+     * para que los avisos del optimizador digan donde esta el problema. -1 y
+     * null si no se conoce.
+     */
+    public int linea = -1;
+    public int columna = -1;
+    public String fuente = null;
+
     public Cuadruplo(int indice, String operador, String arg1, String arg2,
             String resultado, String comentario) {
         this.indice = indice;

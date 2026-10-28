@@ -90,9 +90,43 @@ public class GeneradorCodigo {
     public static int emitir(String operador, String arg1, String arg2,
                              String resultado, String comentario) {
         int indice = codigo.size();
-        codigo.add(new Cuadruplo(indice, operador, texto(arg1), texto(arg2),
-                                 texto(resultado), comentario));
+        Cuadruplo c = new Cuadruplo(indice, operador, texto(arg1), texto(arg2),
+                                    texto(resultado), comentario);
+        c.linea = lineaActual;
+        c.columna = columnaActual;
+        c.fuente = fuenteActual;
+        codigo.add(c);
         return indice;
+    }
+
+    // ------------------------------------------------------------------
+    // Origen en el codigo fuente
+    //
+    // AnalizadorSemantico lo fija al empezar cada sentencia y cada condicion;
+    // toda instruccion emitida despues lo hereda. No cambia el codigo: solo
+    // permite que el optimizador diga en que linea esta lo que encontro.
+    // ------------------------------------------------------------------
+
+    private static int lineaActual = -1;
+    private static int columnaActual = -1;
+    private static String fuenteActual = null;
+
+    public static void fijarOrigen(int linea, int columna, String fuente) {
+        lineaActual = linea;
+        columnaActual = columna;
+        fuenteActual = fuente;
+    }
+
+    public static int lineaActual() {
+        return lineaActual;
+    }
+
+    public static int columnaActual() {
+        return columnaActual;
+    }
+
+    public static String fuenteActual() {
+        return fuenteActual;
     }
 
     /** Marca en el codigo el punto al que apunta una etiqueta. */
@@ -450,6 +484,7 @@ public class GeneradorCodigo {
         direccionesDeTemporales.clear();
         contadorTemporales = 0;
         contadorEtiquetas = 0;
+        fijarOrigen(-1, -1, null);
     }
 
     // ------------------------------------------------------------------

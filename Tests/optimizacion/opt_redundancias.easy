@@ -8,6 +8,7 @@
 //      lectura NO se puede reutilizar
 //   d) copia sobrante: X = X + 1 genera t = X + 1 ; X = t
 //   e) la variable cambia entre dos calculos iguales: NO son redundantes
+//   f) la misma asignacion dos veces seguidas: la segunda sobra
 //
 // Salida esperada, con la entrada fija del simulador (cada LEER recibe
 // 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
@@ -17,6 +18,7 @@
 //   c: 6 50
 //   d: 4
 //   e: 9 15
+//   f: 5
 //
 // Para ver el codigo:  easy Tests\optimizacion\opt_redundancias.easy --codigo-optimizado
 
@@ -51,4 +53,10 @@ INICIO{
     X = 10;
     ENT Ry = X + Y;
     IMPRIMIR("e: " + Rx + " " + Ry);
+
+    // f)
+    ENT Copia = 0;
+    Copia = Y;
+    Copia = Y;
+    IMPRIMIR("f: " + Copia);
 }FIN

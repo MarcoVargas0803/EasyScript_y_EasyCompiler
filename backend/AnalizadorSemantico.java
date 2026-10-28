@@ -156,14 +156,65 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
     public Object visit(ASTSentencias node, Object data) {
         if (reutilizarAmbito) {
             reutilizarAmbito = false;
-            return node.childrenAccept(this, data);
+            return recorrerSentencias(node, data);
         }
         TablaSimbolos.abrirAmbito();
         try {
-            return node.childrenAccept(this, data);
+            return recorrerSentencias(node, data);
         } finally {
             cerrarAmbitoAvisando();
         }
+    }
+
+    /**
+     * Visita cada sentencia anotando antes su origen en el generador, para que
+     * cada cuadruplo sepa de que linea salio. Al terminar cada una se vuelve al
+     * origen de la sentencia de fuera: lo que esta emita despues (el ir_a final
+     * de un SI, por ejemplo) es suyo y no de la ultima sentencia de su cuerpo.
+     */
+    private Object recorrerSentencias(SimpleNode node, Object data) {
+        for (int i = 0; i < node.jjtGetNumChildren(); i++) {
+            Node hijo = node.jjtGetChild(i);
+            int linea = GeneradorCodigo.lineaActual();
+            int columna = GeneradorCodigo.columnaActual();
+            String fuente = GeneradorCodigo.fuenteActual();
+            if (hijo instanceof NodoEasy) {
+                fijarOrigen((NodoEasy) hijo);
+            }
+            try {
+                hijo.jjtAccept(this, data);
+            } finally {
+                GeneradorCodigo.fijarOrigen(linea, columna, fuente);
+            }
+        }
+        return data;
+    }
+
+    /**
+     * Fija como origen del codigo que se emita a continuacion el primer token
+     * del nodo, con el texto de su linea (solo esa linea: un SI completo
+     * ocuparia varias).
+     */
+    private static void fijarOrigen(NodoEasy nodo) {
+        Token primero = nodo.jjtGetFirstToken();
+        if (primero == null) {
+            return;
+        }
+        Token ultimo = nodo.jjtGetLastToken();
+        StringBuilder sb = new StringBuilder();
+        Token previo = null;
+        for (Token t = primero; t != null && t.kind != EasyCompilerConstants.EOF
+                && t.beginLine == primero.beginLine; t = t.next) {
+            if (previo != null && t.beginColumn > previo.endColumn + 1) {
+                sb.append(' ');
+            }
+            sb.append(t.image);
+            if (t == ultimo) {
+                break;
+            }
+            previo = t;
+        }
+        GeneradorCodigo.fijarOrigen(primero.beginLine, primero.beginColumn, sb.toString());
     }
 
     /**
@@ -990,6 +1041,7 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
      * saltos (con listas, quiza vacias) que quien llama debe completar.
      */
     private Atributo condicionEnSaltos(NodoEasy nodoCondicion, String estructura) {
+        fijarOrigen(nodoCondicion);
         modoSalto = CAE_VERDADERO;
         Atributo c = condicionBooleana(nodoCondicion, estructura);
         modoSalto = VALOR;
@@ -1375,6 +1427,9 @@ public class AnalizadorSemantico extends EasyCompilerDefaultVisitor {
         if (variable == null || operador == null) {
             return;   // cabecera incompleta por un error sintactico
         }
+        // El paso se emite despues del cuerpo, pero su origen es la cabecera.
+        GeneradorCodigo.fijarOrigen(variable.beginLine, variable.beginColumn,
+            variable.image + operador.image);
         String aritmetico =
             (operador.kind == EasyCompilerConstants.INCREMENTO_AL_VALOR) ? "+" : "-";
         // El ambito del PARA sigue abierto aqui, asi que buscar() encuentra el

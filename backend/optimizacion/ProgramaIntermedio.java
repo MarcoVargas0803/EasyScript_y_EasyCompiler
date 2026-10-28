@@ -36,6 +36,9 @@ final class ProgramaIntermedio {
     /** Advertencias que descubre la optimizacion (ej. division entre cero constante). */
     final List<ErrorCompilador> advertencias = new ArrayList<ErrorCompilador>();
 
+    /** Instrucciones que ya generaron advertencia: las fases se repiten y no deben duplicarla. */
+    final Set<Cuadruplo> avisados = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Cuadruplo, Boolean>());
+
     private int ultimoTemporal;
     private int ultimaEtiqueta;
 
