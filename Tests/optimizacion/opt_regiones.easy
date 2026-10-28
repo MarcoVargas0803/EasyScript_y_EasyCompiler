@@ -30,7 +30,7 @@ INICIO{
         Cont = 1;
     }
     MIENTRAS (Cont < Limite) {
-        Cont = Cont + Paso * 1;
+        Cont = Cont + Paso * Paso;
     }
     IMPRIMIR("a: " + Cont);
 

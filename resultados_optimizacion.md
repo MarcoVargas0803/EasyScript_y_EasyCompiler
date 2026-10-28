@@ -144,21 +144,40 @@ dirección y lee el elemento una vez; `t = Contador + 1 ; Contador = t` queda en
   primero. En `opt_reordenacion` (f) los temporales vivos bajan de 3 a 2, el mínimo.
 - **Propagación de copias**: `t = x` se sustituye por `x` en su bloque si `x` no cambia.
 
+## Fase 4 — Optimización de bucles (`OptimizacionBucles`)
+
+Sobre los bucles naturales del grafo (arista de vuelta a una cabecera que la domina),
+del más interno al más externo. Cada bucle recibe un **bloque de iniciación** justo
+antes de su cabecera; los saltos que llegaban a la cabecera desde fuera se redirigen
+a él (caso real: el final de un `SI` comparte etiqueta con el `MIENTRAS` que sigue).
+
+- **Código invariante**: un cálculo sale del bucle si cada operando es constante, no
+  se asigna dentro (A[v] = 0) o es otro invariante, y su temporal no se usa fuera.
+  Una división cuyo divisor no es una constante distinta de 0 no sale: si el bucle
+  no da vueltas, el original no la ejecuta (`opt_bucles`, d).
+- **Reducción de fuerza** (inicialización / incremento / cuerpo): para la variable de
+  inducción `I = I + c` y un derivado `t = a·I + b`, se crea `s = a·I + b` en la
+  iniciación, `s = s + a·c` tras el incremento, y `t = I * a` pasa a `t = s`. Cubre
+  arreglos (`I * 4`) y matrices (`(F*3 + C) * 4` → `+4` por vuelta de `C`, `+12`
+  por vuelta de `F`).
+
 ## Resumen por fase
 
 19 programas optimizables. Se excluye `codigo2`, que no termina: el simulador lo
 corta a los 20 000 pasos. Las cifras son acumuladas (F2 incluye F1, etc.).
 
-| Métrica                   | F0    | F1    | F2    | F3    | F0→F3   |
-| ------------------------- | ----- | ----- | ----- | ----- | ------- |
-| Instrucciones             | 903   | 760   | 701   | 698   | −22.7 % |
-| Instr. ejecutadas         | 1 457 | 1 313 | 1 190 | 1 186 | −18.6 % |
-| Costo dinámico            | 4 003 | 3 472 | 3 319 | 3 268 | −18.4 % |
-| Bytes de temporales       | 1 941 | 1 252 | 1 012 | 1 000 | −48.5 % |
-| Σ máx. temporales vivos   | 31    | 26    | 28    | 27    | −12.9 % |
+| Métrica                 | F0    | F1    | F2    | F3    | F4    | F0→F4   |
+| ----------------------- | ----- | ----- | ----- | ----- | ----- | ------- |
+| Instrucciones           | 903   | 760   | 701   | 699   | 706   | −21.8 % |
+| Instr. ejecutadas       | 1 451 | 1 307 | 1 185 | 1 183 | 1 178 | −18.8 % |
+| Costo dinámico          | 3 995 | 3 464 | 3 312 | 3 267 | 3 201 | −19.9 % |
+| Bytes de temporales     | 1 941 | 1 252 | 1 012 | 1 004 | 1 012 | −47.9 % |
+| Σ máx. temporales vivos | 31    | 26    | 28    | 27    | 30    | −3.2 %  |
 
 F2 sube los temporales vivos: reutilizar un valor alarga su vida (el precio clásico
 de eliminar subexpresiones comunes). F3 recupera una parte con el orden de evaluación.
+F4 cambia multiplicaciones por sumas (menos costo) a cambio de variables que viven
+todo el bucle: más instrucciones escritas y más temporales vivos, menos costo dinámico.
 
 ## Depuración
 
