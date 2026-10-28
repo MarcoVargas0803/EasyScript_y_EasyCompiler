@@ -1,0 +1,54 @@
+// opt_redundancias.easy
+//
+// Banco de la fase F2 (eliminacion de redundancias). Casos:
+//
+//   a) la misma subexpresion dos veces en una expresion
+//   b) el mismo elemento leido dos veces: su direccion se calcula una vez
+//   c) una escritura entre dos lecturas del mismo elemento: la segunda
+//      lectura NO se puede reutilizar
+//   d) copia sobrante: X = X + 1 genera t = X + 1 ; X = t
+//   e) la variable cambia entre dos calculos iguales: NO son redundantes
+//
+// Salida esperada, con la entrada fija del simulador (cada LEER recibe
+// 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
+//
+//   a: 64 30
+//   b: 16
+//   c: 6 50
+//   d: 4
+//   e: 9 15
+//
+// Para ver el codigo:  easy Tests\optimizacion\opt_redundancias.easy --codigo-optimizado
+
+INICIO{
+    ENT X = 0;
+    ENT Y = 0;
+    LEER(X);
+    LEER(Y);
+
+    // a)
+    ENT P = (X + Y) * (X + Y);
+    ENT Q = X * Y + X * Y;
+    IMPRIMIR("a: " + P + " " + Q);
+
+    // b)
+    ARREGLO ENT V[4] = {5, 6, 7, 8};
+    ENT S = V[X] + V[X];
+    IMPRIMIR("b: " + S);
+
+    // c)
+    ENT Antes = V[1];
+    V[1] = 50;
+    ENT Despues = V[1];
+    IMPRIMIR("c: " + Antes + " " + Despues);
+
+    // d)
+    X = X + 1;
+    IMPRIMIR("d: " + X);
+
+    // e)
+    ENT Rx = X + Y;
+    X = 10;
+    ENT Ry = X + Y;
+    IMPRIMIR("e: " + Rx + " " + Ry);
+}FIN

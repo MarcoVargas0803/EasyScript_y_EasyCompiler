@@ -2,7 +2,7 @@
 
 Compilador del lenguaje **EasyScript**. Implementa las fases de **análisis
 léxico**, **análisis sintáctico** y **análisis semántico**, incluido el **esquema
-de traducción** a código de tres direcciones.
+de traducción** a código de tres direcciones y su **optimización**.
 
 # Guía de Compilación y Ejecución
 
@@ -62,7 +62,8 @@ easy <archivo> [banderas ...]
 El **árbol sintáctico** (decorado con sus operadores y tipos), la **tabla de
 símbolos** (con las direcciones de memoria de cada dato) y el **código intermedio**
 (cuádruplos y temporales) se construyen siempre, pero solo se imprimen si se piden
-con una bandera:
+con una bandera. Lo mismo pasa con la **optimización** del código intermedio: corre
+siempre que el programa no tenga errores, y solo se ve con sus banderas:
 
 | Bandera                       | Muestra                                          |
 | ----------------------------- | ------------------------------------------------ |
@@ -71,6 +72,8 @@ con una bandera:
 | `--arbol-sintactico-completo` | el árbol con la derivación literal, sin colapsar |
 | `--tabla-simbolos`            | la tabla de símbolos                             |
 | `--codigo-intermedio`         | los cuádruplos y la dirección de cada temporal   |
+| `--codigo-optimizado`         | los cuádruplos optimizados y sus métricas        |
+| `--bitacora-optimizacion`     | cada transformación del optimizador, por fase    |
 
 Esta misma tabla la imprime el compilador con `--ayuda`:
 
@@ -87,6 +90,8 @@ easy muestra.easy --arbol-sintactico      # + árbol sintáctico colapsado
 easy muestra.easy --arbol-sintactico-completo   # + árbol sin colapsar
 easy muestra.easy --tabla-simbolos        # + tabla de símbolos
 easy muestra.easy --codigo-intermedio     # + código de tres direcciones
+easy muestra.easy --codigo-optimizado     # + código optimizado y métricas
+easy muestra.easy --bitacora-optimizacion # + transformaciones por fase
 easy --compilar                                 # solo compila
 easy --ayuda                                    # sintaxis y tabla de banderas
 ```
@@ -126,7 +131,7 @@ Con eso ya funcionan los cuatro pasos, desde la carpeta `EasyCompiler`:
 ```powershell
 jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt   # 1. gramática anotada + clases del árbol
 javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj    # 2. analizador léxico y sintáctico
-javac -encoding UTF-8 -d out backend\*.java frontend\*.java # 3. compila todo a la carpeta out\
+javac -encoding UTF-8 -d out backend\*.java backend\optimizacion\*.java frontend\*.java   # 3. compila todo a out\
 java "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy   # 4. analiza un programa
 ```
 
@@ -138,7 +143,7 @@ jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
 REM 2. analizador léxico y sintáctico
 javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
 REM 3. compila todo a la carpeta out\
-javac -encoding UTF-8 -d out backend\*.java frontend\*.java
+javac -encoding UTF-8 -d out backend\*.java backend\optimizacion\*.java frontend\*.java
 REM 4. analiza un programa
 java -Dfile.encoding=UTF-8 -cp out frontend.Main Tests\muestra.easy
 ```
@@ -158,8 +163,12 @@ la gramática cambió sin querer (ver la nota sobre las advertencias de `javacc`
 El `-encoding UTF-8` del paso 3 no es opcional: el código tiene acentos y sin él
 `javac` falla en un equipo configurado en español.
 
-El `-d out` manda los `.class` a `out\backend\` y `out\frontend\` en vez de
-dejarlos mezclados con los `.java`. Por eso el paso 4 lleva `-cp out`: es donde quedaron.
+El paso 3 lista `backend\optimizacion\*.java` aparte porque `javac` no entra en
+subcarpetas: ahí vive el optimizador del código intermedio (paquete `backend.optimizacion`).
+
+El `-d out` manda los `.class` a `out\backend\`, `out\backend\optimizacion\` y
+`out\frontend\` en vez de dejarlos mezclados con los `.java`. Por eso el paso 4 lleva
+`-cp out`: es donde quedaron.
 
 ## Opción B — rutas completas, sin tocar el `PATH`
 
@@ -172,7 +181,7 @@ $CC = "C:\javacc\javacc-javacc-7.0.13\target\javacc.jar"
 
 & "$J\java.exe"  -cp $CC jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt
 & "$J\java.exe"  -cp $CC javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj
-& "$J\javac.exe" -encoding UTF-8 -d out backend\*.java frontend\*.java
+& "$J\javac.exe" -encoding UTF-8 -d out backend\*.java backend\optimizacion\*.java frontend\*.java
 & "$J\java.exe"  "-Dfile.encoding=UTF-8" -cp out frontend.Main Tests\muestra.easy
 ```
 

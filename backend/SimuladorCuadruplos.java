@@ -58,6 +58,12 @@ public class SimuladorCuadruplos {
 
     private final List<String> traza = new ArrayList<String>();
     private int pasos = 0;
+
+    // Contadores para las metricas de la optimizacion. No van a la traza: solo
+    // se consultan con sus getters, asi que la traza sigue igual que antes.
+    private final Map<String, Integer> ejecucionesPorOperador = new TreeMap<String, Integer>();
+    private long lecturasMemoria = 0;
+    private long escriturasMemoria = 0;
     private int siguienteEntrada = 0;
     private String terminacion = null;
     private int indiceDelFallo = -1;
@@ -82,6 +88,21 @@ public class SimuladorCuadruplos {
 
     public List<String> getTraza() {
         return traza;
+    }
+
+    /** Cuantas veces se ejecuto cada operador. Las etiquetas no cuentan. */
+    public Map<String, Integer> getEjecucionesPorOperador() {
+        return ejecucionesPorOperador;
+    }
+
+    /** Lecturas de variables, temporales y elementos (los literales no leen memoria). */
+    public long getLecturasMemoria() {
+        return lecturasMemoria;
+    }
+
+    /** Escrituras de variables, temporales y elementos. */
+    public long getEscriturasMemoria() {
+        return escriturasMemoria;
     }
 
     /** "fin", "corte: limite de pasos", "error de ejecucion: ..." o "operador desconocido: X". */
@@ -157,6 +178,8 @@ public class SimuladorCuadruplos {
         if ("etiqueta".equals(op)) {
             return siguiente;
         }
+        Integer veces = ejecucionesPorOperador.get(op);
+        ejecucionesPorOperador.put(op, Integer.valueOf(veces == null ? 1 : veces.intValue() + 1));
         if ("=".equals(op)) {
             asignar(c.resultado, valor(c.arg1));
             return siguiente;
@@ -234,6 +257,7 @@ public class SimuladorCuadruplos {
         if ("=[]".equals(op)) {
             TreeMap<Long, Object> arreglo = arreglos.get(c.arg1);
             Object v = (arreglo == null) ? null : arreglo.get(Long.valueOf(desplazamiento(c.arg2)));
+            lecturasMemoria++;
             asignar(c.resultado, (v == null) ? Long.valueOf(0) : v);
             return siguiente;
         }
@@ -246,6 +270,7 @@ public class SimuladorCuadruplos {
                 arreglos.put(c.arg1, arreglo);
             }
             arreglo.put(Long.valueOf(desplazamiento(c.arg2)), valor(c.resultado));
+            escriturasMemoria++;
             return siguiente;
         }
         if ("imprimir".equals(op)) {
@@ -302,11 +327,13 @@ public class SimuladorCuadruplos {
             return Double.valueOf(casilla);
         }
         Object v = memoria.get(casilla);
+        lecturasMemoria++;
         return (v == null) ? Long.valueOf(0) : v;
     }
 
     private void asignar(String nombre, Object v) {
         memoria.put(nombre, v);
+        escriturasMemoria++;
     }
 
     private int destino(String etiqueta) {

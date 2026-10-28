@@ -1,0 +1,70 @@
+// opt_bucles.easy
+//
+// Banco de la fase F4 (optimizacion de bucles). Casos:
+//
+//   a) codigo invariante: K * 3 no cambia dentro del PARA
+//   b) recorrido de un arreglo: el desplazamiento I * 4 se reduce a sumas
+//   c) matriz recorrida con dos PARA anidados
+//   d) MIENTRAS que no da ninguna vuelta con una division invariante entre
+//      cero: NO se puede sacar del ciclo, o fallaria un programa correcto
+//   e) MIENTRAS con un invariante (N * N)
+//
+// Salida esperada, con la entrada fija del simulador (cada LEER recibe
+// 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
+//
+//   a: 55
+//   b: 30
+//   c: 21
+//   d: 0
+//   e: 125
+//
+// Para ver el codigo:  easy Tests\optimizacion\opt_bucles.easy --codigo-optimizado
+
+INICIO{
+    ENT N = 5;
+    ENT K = 0;
+    LEER(K);
+
+    // a)
+    ENT Suma = 0;
+    PARA (ENT I = 0; I < N; I++) {
+        Suma = Suma + K * 3 + I;
+    }
+    IMPRIMIR("a: " + Suma);
+
+    // b)
+    ARREGLO ENT V[5] = {1, 2, 3, 4, 5};
+    ENT Total = 0;
+    PARA (ENT I = 0; I < 5; I++) {
+        V[I] = V[I] * 2;
+        Total = Total + V[I];
+    }
+    IMPRIMIR("b: " + Total);
+
+    // c)
+    MATRIZ ENT M[2][3] = {{1, 2, 3}, {4, 5, 6}};
+    ENT Acumulado = 0;
+    PARA (ENT F = 0; F < 2; F++) {
+        PARA (ENT C = 0; C < 3; C++) {
+            Acumulado = Acumulado + M[F][C];
+        }
+    }
+    IMPRIMIR("c: " + Acumulado);
+
+    // d)
+    ENT Divisor = 0;
+    ENT Cuenta = 0;
+    MIENTRAS (Cuenta > 0) {
+        Cuenta = Cuenta - 100 / Divisor;
+    }
+    IMPRIMIR("d: " + Cuenta);
+
+    // e)
+    ENT J = 0;
+    ENT Acum = 0;
+    MIENTRAS (J < N) {
+        Acum = Acum + N * N;
+        J = J + 1;
+    }
+    IMPRIMIR("e: " + Acum);
+}FIN

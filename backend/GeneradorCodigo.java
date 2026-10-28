@@ -460,8 +460,11 @@ public class GeneradorCodigo {
         return (s == null) ? "-" : s;
     }
 
-    /** Escribe la instruccion como se leeria en pseudocodigo. */
-    private static String legible(String op, String a1, String a2, String res) {
+    /**
+     * Escribe la instruccion como se leeria en pseudocodigo. Es publico porque
+     * el optimizador reescribe cuadruplos y debe mostrarlos de la misma forma.
+     */
+    public static String legible(String op, String a1, String a2, String res) {
         if ("etiqueta".equals(op)) return res + ":";
         if ("ir_a".equals(op))     return "ir_a " + res;
         if ("si_falso".equals(op))    return "si_falso " + a1 + " ir_a " + res;

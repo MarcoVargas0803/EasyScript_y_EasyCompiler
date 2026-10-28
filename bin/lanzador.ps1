@@ -17,7 +17,7 @@
 #
 #   jjtree  backend\EasyCompiler.jjt  ->  backend\EasyCompiler.jj + nodos del arbol
 #   javacc  backend\EasyCompiler.jj   ->  analizador lexico y sintactico
-#   javac   backend\*.java frontend\*.java  ->  out\
+#   javac   backend\*.java backend\optimizacion\*.java frontend\*.java  ->  out\
 #   java    frontend.Main <archivo> <banderas>
 #
 # Los tres primeros solo se repiten si cambio algo: si backend\EasyCompiler.jjt o
@@ -91,6 +91,7 @@ function Hace-FaltaCompilar {
 
     $fuentes = @(Get-Item (Join-Path $proyecto "backend\EasyCompiler.jjt"))
     $fuentes += Get-ChildItem (Join-Path $proyecto "backend") -Filter *.java -File
+    $fuentes += Get-ChildItem (Join-Path $proyecto "backend\optimizacion") -Filter *.java -File
     $fuentes += Get-ChildItem (Join-Path $proyecto "frontend") -Filter *.java -File
 
     foreach ($f in $fuentes) {
@@ -125,7 +126,7 @@ function Compilar {
     $pasos = @(
         @("jjtree", $java,  "-cp `"$JAVACC`" jjtree -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jjt"),
         @("javacc", $java,  "-cp `"$JAVACC`" javacc -OUTPUT_DIRECTORY:backend backend\EasyCompiler.jj"),
-        @("javac",  $javac, "-encoding UTF-8 -d out backend\*.java frontend\*.java")
+        @("javac",  $javac, "-encoding UTF-8 -d out backend\*.java backend\optimizacion\*.java frontend\*.java")
     )
     foreach ($paso in $pasos) {
         if (-not (Paso $paso[0] $paso[1] $paso[2])) {

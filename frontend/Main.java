@@ -4,6 +4,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
 import backend.*;
+import backend.optimizacion.AlgoritmosOptimizacion;
+import backend.optimizacion.CostosEjecucion;
+import backend.optimizacion.MetricasCodigo;
 
 public class Main {
     // Códigos ANSI para colores en la terminal
@@ -25,6 +28,9 @@ public class Main {
                 System.out.println("          --tabla-simbolos             Muestra la tabla de simbolos.");
                 System.out.println("          --codigo-intermedio          Muestra el codigo de tres direcciones que");
                 System.out.println("                                       genera el esquema de traduccion.");
+                System.out.println("          --codigo-optimizado          Muestra el codigo intermedio optimizado");
+                System.out.println("                                       y sus metricas antes y despues.");
+                System.out.println("          --bitacora-optimizacion      Muestra cada transformacion del optimizador.");
                 sugerirAyuda();
                 return;
             }
@@ -72,6 +78,8 @@ public class Main {
             boolean arbolCompleto = false;
             boolean mostrarTabla = false;
             boolean mostrarCodigo = false;
+            boolean mostrarOptimizado = false;
+            boolean mostrarBitacora = false;
             boolean banderaDesconocida = false;
             for (int i = 1; i < args.length; i++) {
                 String arg = args[i];
@@ -84,6 +92,10 @@ public class Main {
                     mostrarTabla = true;
                 } else if (arg.equals("--codigo-intermedio")) {
                     mostrarCodigo = true;
+                } else if (arg.equals("--codigo-optimizado")) {
+                    mostrarOptimizado = true;
+                } else if (arg.equals("--bitacora-optimizacion")) {
+                    mostrarBitacora = true;
                 } else {
                     // Tambien lo que no empieza con "--" (-tabla, tabla-simbolos,
                     // un segundo archivo): antes se ignoraba sin avisar.
@@ -129,6 +141,30 @@ public class Main {
             // ---------------------------------------------------------------
             new AnalizadorSemantico().analizar(raiz);
 
+            // ---------------------------------------------------------------
+            // OPTIMIZACION
+            //
+            // Corre siempre que el programa no tenga errores (con errores el
+            // codigo intermedio es parcial). Trabaja sobre una copia: lo que
+            // muestra --codigo-intermedio sigue siendo el codigo sin optimizar.
+            // Sus advertencias (ej. una division entre cero que se descubre al
+            // calcular constantes) se suman al reporte. Si el optimizador
+            // fallara, se sigue con el codigo sin optimizar.
+            // ---------------------------------------------------------------
+            AlgoritmosOptimizacion.Resultado optimizado = null;
+            String motivoSinOptimizar = null;
+            if (raiz == null || EasyCompiler.arbolParcial || hayErrores()) {
+                motivoSinOptimizar = "el programa tiene errores y su codigo intermedio es parcial";
+            } else {
+                try {
+                    optimizado = AlgoritmosOptimizacion.optimizar(GeneradorCodigo.obtenerCodigo());
+                    EasyCompiler.listaErrores.addAll(optimizado.advertencias);
+                } catch (RuntimeException e) {
+                    motivoSinOptimizar = "fallo interno del optimizador (" + e.getMessage()
+                            + "); se conserva el codigo sin optimizar";
+                }
+            }
+
             if (mostrarArbol) {
                 imprimirArbol(raiz, arbolCompleto);
             }
@@ -139,6 +175,14 @@ public class Main {
 
             if (mostrarCodigo) {
                 imprimirCodigoIntermedio();
+            }
+
+            if (mostrarOptimizado) {
+                imprimirCodigoOptimizado(optimizado, motivoSinOptimizar);
+            }
+
+            if (mostrarBitacora) {
+                imprimirBitacoraOptimizacion(optimizado, motivoSinOptimizar);
             }
 
             ordenarErrores();
@@ -226,7 +270,7 @@ public class Main {
                  */
             }
 
-            if (!mostrarArbol && !mostrarTabla && !mostrarCodigo) {
+            if (!mostrarArbol && !mostrarTabla && !mostrarCodigo && !mostrarOptimizado && !mostrarBitacora) {
                 System.out.println(ANSI_BLUE
                         + "  (usa --arbol-sintactico, --tabla-simbolos o --codigo-intermedio para ver mas detalle)"
                         + ANSI_RESET);
@@ -276,6 +320,8 @@ public class Main {
         System.out.printf(formato, "--arbol-sintactico-completo", "el árbol con la derivación literal, sin colapsar");
         System.out.printf(formato, "--tabla-simbolos", "la tabla de símbolos");
         System.out.printf(formato, "--codigo-intermedio", "los cuádruplos y la dirección de cada temporal");
+        System.out.printf(formato, "--codigo-optimizado", "los cuádruplos optimizados y sus métricas");
+        System.out.printf(formato, "--bitacora-optimizacion", "cada transformación del optimizador, por fase");
         System.out.println(borde);
     }
 
@@ -301,6 +347,19 @@ public class Main {
             return;
         }
 
+        imprimirCuadruplos(codigo);
+
+        java.util.List<String> rotas = GeneradorCodigo.etiquetasRotas();
+        if (!rotas.isEmpty()) {
+            System.out.println(ANSI_RED + "  ERROR INTERNO: hay saltos a etiquetas que no existen: "
+                    + rotas + ANSI_RESET);
+        }
+
+        imprimirTemporales();
+    }
+
+    /** La tabla de cuadruplos con su total: la comparten el codigo intermedio y el optimizado. */
+    private static void imprimirCuadruplos(java.util.List<Cuadruplo> codigo) {
         String borde = "+-------+------------+------------+------------+------------+";
         System.out.println(borde);
         System.out.printf("| %-5s | %-10s | %-10s | %-10s | %-10s |   %s%n",
@@ -318,14 +377,79 @@ public class Main {
         }
         System.out.println(borde);
         System.out.println(ANSI_BLUE + "  Total de instrucciones: " + codigo.size() + ANSI_RESET);
+    }
 
-        java.util.List<String> rotas = GeneradorCodigo.etiquetasRotas();
-        if (!rotas.isEmpty()) {
-            System.out.println(ANSI_RED + "  ERROR INTERNO: hay saltos a etiquetas que no existen: "
-                    + rotas + ANSI_RESET);
+    /** true si hay algun error que no sea advertencia. */
+    private static boolean hayErrores() {
+        for (int i = 0; i < EasyCompiler.listaErrores.size(); i++) {
+            if (!"Advertencia".equals(EasyCompiler.listaErrores.get(i).tipo)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * --codigo-optimizado: los cuadruplos que dejo el optimizador, donde vive
+     * cada temporal que sobrevivio, y las metricas del codigo antes y despues.
+     * Las metricas dinamicas salen de ejecutar los dos codigos en el simulador
+     * con la entrada fija de las pruebas.
+     */
+    private static void imprimirCodigoOptimizado(AlgoritmosOptimizacion.Resultado r, String motivo) {
+        System.out.println(ANSI_BLUE + "\n============================================================");
+        System.out.println(" CODIGO OPTIMIZADO - CUADRUPLOS");
+        System.out.println("============================================================" + ANSI_RESET);
+        if (r == null) {
+            System.out.println(ANSI_YELLOW + "  (no se optimizo) " + motivo + "." + ANSI_RESET);
+            return;
+        }
+        if (r.codigo.isEmpty()) {
+            System.out.println(ANSI_YELLOW + "  (vacio) No queda ninguna instruccion." + ANSI_RESET);
+        } else {
+            imprimirCuadruplos(r.codigo);
         }
 
-        imprimirTemporales();
+        java.util.List<String[]> temporales = r.temporales();
+        if (!temporales.isEmpty()) {
+            System.out.println(ANSI_BLUE + "\n TEMPORALES - DIRECCIONES" + ANSI_RESET);
+            String borde = "+----------+-------+-------+-------+";
+            System.out.println(borde);
+            System.out.printf("| %-8s | %-5s | %-5s | %-5s |%n", "TEMPORAL", "TIPO", "ANCHO", "DIR");
+            System.out.println(borde);
+            for (String[] t : temporales) {
+                System.out.printf("| %-8s | %-5s | %-5s | %-5s |%n", t[0], t[1], t[2], t[3]);
+            }
+            System.out.println(borde);
+        }
+
+        CostosEjecucion costos = new CostosEjecucion();
+        MetricasCodigo antes = r.metricasOriginal(costos, true);
+        MetricasCodigo despues = r.metricasOptimizado(costos, true);
+        System.out.println(ANSI_BLUE + "\n RESUMEN DE LA OPTIMIZACION" + ANSI_RESET);
+        String borde = "+------------------------+------------+------------+---------+";
+        System.out.println(borde);
+        System.out.printf("| %-22s | %10s | %10s | %7s |%n", "METRICA", "ORIGINAL", "OPTIMIZADO", "CAMBIO");
+        System.out.println(borde);
+        for (String[] f : MetricasCodigo.comparar(antes, despues)) {
+            System.out.printf("| %-22s | %10s | %10s | %7s |%n", f[0], f[1], f[2], f[3]);
+        }
+        System.out.println(borde);
+        System.out.println(ANSI_BLUE + "  Las metricas dinamicas se miden ejecutando el codigo en el simulador,"
+                + "\n  con la entrada fija 3, 5, 1, 0, 2, 4 para cada LEER." + ANSI_RESET);
+    }
+
+    /** --bitacora-optimizacion: cada transformacion, por fase, y el grafo de flujo final. */
+    private static void imprimirBitacoraOptimizacion(AlgoritmosOptimizacion.Resultado r, String motivo) {
+        System.out.println(ANSI_BLUE + "\n============================================================");
+        System.out.println(" BITACORA DE LA OPTIMIZACION");
+        System.out.println("============================================================" + ANSI_RESET);
+        if (r == null) {
+            System.out.println(ANSI_YELLOW + "  (no se optimizo) " + motivo + "." + ANSI_RESET);
+            return;
+        }
+        for (String linea : r.bitacora()) {
+            System.out.println(linea.isEmpty() ? "" : "  " + linea);
+        }
     }
 
     /**
