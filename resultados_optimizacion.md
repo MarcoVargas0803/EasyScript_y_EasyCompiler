@@ -67,21 +67,12 @@ en su cabecera la salida esperada, que no debe cambiar al optimizar:
 | ----------------------- | --------------------------------------------------------------------- |
 | `opt_constantes`        | cadenas de constantes, `CONST_`, DEC, concat, `1 / (2 - 2)` en `SI (FALSO)` |
 | `opt_redundancias`      | subexpresiones repetidas, `V[X]` dos veces, escritura entre lecturas, asignación repetida |
-| `opt_reordenacion`      | `A*B` / `B*A`, `A + 1 + 2`, identidades, DEC sin reasociar            |
+| `opt_reordenacion`      | `A*B` / `B*A`, `A + 1 + 2`, identidades, DEC sin reasociar, orden de evaluación |
 | `opt_bucles`            | invariantes, recorrido de arreglo y matriz, división en ciclo sin vueltas |
 | `opt_regiones`          | SI que comparte etiqueta con un MIENTRAS, constantes entre bloques    |
 | `opt_muertas`           | asignaciones muertas en un camino, en todos, y `LEER` sin usar        |
 
-### Punto de partida (F0: sin optimizar)
-
-19 programas optimizables (13 de `Tests\` + 6 del banco):
-
-| Métrica             | Total  |
-| ------------------- | ------ |
-| Instrucciones       | 894    |
-| Instr. ejecutadas   | 21 448 (20 000 son de `codigo2`, que no termina) |
-| Costo dinámico      | 72 501 |
-| Bytes de temporales | 1 913  |
+Las cifras de cada fase están en el **resumen** al final del documento.
 
 ## Fase 1 — Ejecución en tiempo de compilación (`PlegadoConstantes`)
 
@@ -112,15 +103,6 @@ Ejemplo (`opt_constantes`, caso a): las 13 instrucciones de
 `A = 2 + 3; B = A * 4; C = B - CONST_Base; IMPRIMIR("a: " + A + " " + B + " " + C)`
 quedan en `A = 5`, `B = 20`, `C = 10`, `imprimir "a: 5 20 10"`.
 
-| Métrica (19 programas) | F0     | F1     | Cambio  |
-| ---------------------- | ------ | ------ | ------- |
-| Instrucciones          | 894    | 751    | −16.0 % |
-| Instr. ejecutadas      | 21 448 | 21 304 | −0.7 %  |
-| … sin `codigo2`        | 1 448  | 1 304  | −9.9 %  |
-| Costo dinámico         | 72 501 | 71 970 | −0.7 %  |
-| … sin `codigo2`        | 3 975  | 3 444  | −13.4 % |
-| Bytes de temporales    | 1 913  | 1 224  | −36.0 % |
-
 `codigo2` no termina: el simulador lo corta a los 20 000 pasos y su cifra no cambia.
 F1 no actúa dentro de los bucles cuando el valor viene de otro bloque (`opt_bucles`,
 `opt_regiones` siguen igual): eso le toca a F5.
@@ -148,12 +130,35 @@ Ejemplos: `(X + Y) * (X + Y)` calcula `X + Y` una vez; `V[X] + V[X]` calcula la
 dirección y lee el elemento una vez; `t = Contador + 1 ; Contador = t` queda en
 `Contador = Contador + 1`.
 
-| Métrica (19 programas)      | F0     | F1     | F2     | F0→F2   |
-| --------------------------- | ------ | ------ | ------ | ------- |
-| Instrucciones               | 894    | 751    | 693    | −22.5 % |
-| Instr. ejecutadas sin `codigo2` | 1 448 | 1 304 | 1 182 | −18.4 % |
-| Costo dinámico sin `codigo2`    | 3 975 | 3 444 | 3 292 | −17.2 % |
-| Bytes de temporales         | 1 913  | 1 224  | 988    | −48.4 % |
+## Fase 3 — Reordenación de operaciones (`ReordenacionOperaciones`)
+
+- **Orden canónico** en `+ * == != && ||`: temporales, arreglos, variables (ambos
+  alfabéticos), constantes. `B * A` pasa a `A * B` y F2 lo reconoce. Los relacionales
+  se ordenan invirtiendo el operador (`I >= C` es `C <= I`).
+- **Identidades**: `x+0`, `x-0`, `x*1`, `x/1` → `x`; `x*0` → `0` (solo ENT). Reducción
+  de fuerza local: `x*2` → `x+x`, `x**2` → `x*x`. En DEC solo las exactas en coma
+  flotante (`x + 0.0` no lo es: `-0.0 + 0.0` da `0.0`).
+- **Reasociación** de constantes enteras: `(A + 1) + 2` → `A + 3`. En DEC no.
+- **Orden de evaluación** con el número mínimo de variables auxiliares (hojas 0; hijos
+  iguales j → j+1; si no, el máximo): si la rama derecha necesita más, se calcula
+  primero. En `opt_reordenacion` (f) los temporales vivos bajan de 3 a 2, el mínimo.
+- **Propagación de copias**: `t = x` se sustituye por `x` en su bloque si `x` no cambia.
+
+## Resumen por fase
+
+19 programas optimizables. Se excluye `codigo2`, que no termina: el simulador lo
+corta a los 20 000 pasos. Las cifras son acumuladas (F2 incluye F1, etc.).
+
+| Métrica                   | F0    | F1    | F2    | F3    | F0→F3   |
+| ------------------------- | ----- | ----- | ----- | ----- | ------- |
+| Instrucciones             | 903   | 760   | 701   | 698   | −22.7 % |
+| Instr. ejecutadas         | 1 457 | 1 313 | 1 190 | 1 186 | −18.6 % |
+| Costo dinámico            | 4 003 | 3 472 | 3 319 | 3 268 | −18.4 % |
+| Bytes de temporales       | 1 941 | 1 252 | 1 012 | 1 000 | −48.5 % |
+| Σ máx. temporales vivos   | 31    | 26    | 28    | 27    | −12.9 % |
+
+F2 sube los temporales vivos: reutilizar un valor alarga su vida (el precio clásico
+de eliminar subexpresiones comunes). F3 recupera una parte con el orden de evaluación.
 
 ## Depuración
 

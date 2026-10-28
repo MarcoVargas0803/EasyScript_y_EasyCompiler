@@ -7,6 +7,7 @@
 //   c) identidades algebraicas: x + 0, x * 1, x * 0, x ** 2, x * 2
 //   d) en DEC no se reasocia: (D + 0.2) + 0.3 no es D + 0.5 en coma flotante
 //   e) una expresion con varias ramas, para el minimo de variables auxiliares
+//   f) la rama derecha es la mas exigente: conviene evaluarla primero
 //
 // Salida esperada, con la entrada fija del simulador (cada LEER recibe
 // 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
@@ -16,6 +17,7 @@
 //   c: 3 5 0 25.0 6
 //   d: 1.6
 //   e: -20
+//   f: 21
 //
 // Para ver el codigo:  easy Tests\optimizacion\opt_reordenacion.easy --codigo-optimizado
 
@@ -52,4 +54,8 @@ INICIO{
     // e)
     ENT F = (A + B) * (A - B) + (A * B - 1);
     IMPRIMIR("e: " + F);
+
+    // f)
+    ENT G = (A - 1) + (B + 2) * (B - 2);
+    IMPRIMIR("f: " + G);
 }FIN

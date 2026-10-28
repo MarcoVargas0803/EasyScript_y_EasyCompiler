@@ -204,7 +204,7 @@ final class EliminacionRedundancias implements Fase {
     }
 
     /** Cambia en los operandos cada nombre sustituido por su reemplazo. */
-    private static void aplicarSustituciones(Cuadruplo c, Map<String, String> sustituir) {
+    static void aplicarSustituciones(Cuadruplo c, Map<String, String> sustituir) {
         if (sustituir.isEmpty() || Cuadruplos.esEtiqueta(c) || "ir_a".equals(c.operador) || "leer".equals(c.operador)) {
             return;
         }

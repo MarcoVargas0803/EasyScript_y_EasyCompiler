@@ -128,8 +128,16 @@ public final class MetricasCodigo {
      * es el mayor de todos.
      */
     static int minimoAuxiliares(List<Cuadruplo> codigo) {
-        Map<String, Integer> etiqueta = new HashMap<String, Integer>();
         int maximo = 0;
+        for (Integer e : etiquetasDeAuxiliares(codigo).values()) {
+            maximo = Math.max(maximo, e.intValue());
+        }
+        return maximo;
+    }
+
+    /** La etiqueta (auxiliares necesarios) de cada temporal calculado. */
+    static Map<String, Integer> etiquetasDeAuxiliares(List<Cuadruplo> codigo) {
+        Map<String, Integer> etiqueta = new HashMap<String, Integer>();
         for (Cuadruplo c : codigo) {
             if (!Cuadruplos.esCalculo(c) || !Cuadruplos.esTemporal(c.resultado)) {
                 continue;
@@ -148,9 +156,8 @@ public final class MetricasCodigo {
                 valor = iguales ? hijos.get(0).intValue() + 1 : Collections.max(hijos).intValue();
             }
             etiqueta.put(c.resultado, Integer.valueOf(valor));
-            maximo = Math.max(maximo, valor);
         }
-        return maximo;
+        return etiqueta;
     }
 
     private static int anchoDe(String tipo) {
