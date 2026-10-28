@@ -1,0 +1,8 @@
+INICIO{
+  BOOL Es_valido = FALSO;
+  
+  // ERROR: Se usa '!' en lugar de '!!' para la negación
+  SI (! Es_valido) {
+    IMPRIMIR("Es falso");
+  }
+}FIN

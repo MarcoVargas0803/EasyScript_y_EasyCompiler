@@ -1,0 +1,45 @@
+{
+  "name": "easyscript",
+  "displayName": "EasyScript",
+  "description": "Resaltado de sintaxis para los programas de EasyScript (.easy) de EasyCompiler.",
+  "version": "0.1.0",
+  "publisher": "easycompiler",
+  "engines": {
+    "vscode": "^1.64.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "files": [
+    "language-configuration.json",
+    "syntaxes/**",
+    "icons/easy.svg",
+    "README.md"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "easyscript",
+        "aliases": [
+          "EasyScript",
+          "easyscript"
+        ],
+        "extensions": [
+          ".easy"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/easy.svg",
+          "dark": "./icons/easy.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "easyscript",
+        "scopeName": "source.easyscript",
+        "path": "./syntaxes/easyscript.tmLanguage.json"
+      }
+    ]
+  }
+}

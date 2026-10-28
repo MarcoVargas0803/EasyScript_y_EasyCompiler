@@ -1,0 +1,61 @@
+// opt_reordenacion.easy
+//
+// Banco de la fase F3 (reordenacion de operaciones). Casos:
+//
+//   a) conmutatividad: A * B y B * A calculan lo mismo
+//   b) constantes enteras que se pueden juntar: A + 1 + 2 es A + 3
+//   c) identidades algebraicas: x + 0, x * 1, x * 0, x ** 2, x * 2
+//   d) en DEC no se reasocia: (D + 0.2) + 0.3 no es D + 0.5 en coma flotante
+//   e) una expresion con varias ramas, para el minimo de variables auxiliares
+//   f) la rama derecha es la mas exigente: conviene evaluarla primero
+//
+// Salida esperada, con la entrada fija del simulador (cada LEER recibe
+// 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
+//
+//   a: 15 15
+//   b: 6
+//   c: 3 5 0 25.0 6
+//   d: 1.6
+//   e: -20
+//   f: 21
+//
+// Para ver el codigo:  easy Tests\optimizacion\opt_reordenacion.easy --codigo-optimizado
+
+INICIO{
+    ENT A = 0;
+    ENT B = 0;
+    LEER(A);
+    LEER(B);
+
+    // a)
+    ENT P = A * B;
+    ENT Q = B * A;
+    IMPRIMIR("a: " + P + " " + Q);
+
+    // b)
+    ENT R = A + 1 + 2;
+    IMPRIMIR("b: " + R);
+
+    // c)
+    ENT S = A + 0;
+    ENT T = B * 1;
+    ENT U = A * 0;
+    DEC W = B ** 2;
+    ENT Z = A * 2;
+    IMPRIMIR("c: " + S + " " + T + " " + U + " " + W + " " + Z);
+
+    // d)
+    DEC D = 0.1;
+    LEER(A);
+    D = D + A;
+    DEC E = D + 0.2 + 0.3;
+    IMPRIMIR("d: " + E);
+
+    // e)
+    ENT F = (A + B) * (A - B) + (A * B - 1);
+    IMPRIMIR("e: " + F);
+
+    // f)
+    ENT G = (A - 1) + (B + 2) * (B - 2);
+    IMPRIMIR("f: " + G);
+}FIN

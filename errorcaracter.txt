@@ -1,5 +1,0 @@
-INICIO{
-  // ERROR: El tipo LETRA solo acepta un carácter, no una cadena
-  LETRA Calificacion = 'EX'; 
-  IMPRIMIR(Calificacion);
-}FIN

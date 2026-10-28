@@ -1,0 +1,54 @@
+// opt_regiones.easy
+//
+// Banco de la fase F5 (optimizacion de regiones). Casos:
+//
+//   a) un SI justo antes de un MIENTRAS: la etiqueta final del SI es tambien
+//      la cabecera del ciclo, asi que el bloque de iniciacion necesita una
+//      etiqueta propia y los saltos del SI deben ir a ella
+//   b) constantes que cruzan bloques: Base sigue valiendo 7 despues del SI
+//   c) bucles anidados con invariantes de distinto nivel: Limite * Paso sale
+//      de los dos ciclos; I * Limite solo del interno
+//
+// Salida esperada, con la entrada fija del simulador (cada LEER recibe
+// 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
+//
+//   a: 5
+//   b: 14
+//   c: 72
+//
+// Para ver el codigo:  easy Tests\optimizacion\opt_regiones.easy --codigo-optimizado
+
+INICIO{
+    ENT X = 0;
+    LEER(X);
+    ENT Limite = 4;
+    ENT Paso = 2;
+
+    // a)
+    ENT Cont = 0;
+    SI (X > 1) {
+        Cont = 1;
+    }
+    MIENTRAS (Cont < Limite) {
+        Cont = Cont + Paso * Paso;
+    }
+    IMPRIMIR("a: " + Cont);
+
+    // b)
+    ENT Base = 7;
+    SI (X > 100) {
+        IMPRIMIR("nunca");
+    }
+    ENT Res = Base * 2;
+    IMPRIMIR("b: " + Res);
+
+    // c)
+    ENT Externo = 0;
+    PARA (ENT I = 0; I < 3; I++) {
+        ENT Fila = I * Limite;
+        PARA (ENT J = 0; J < 2; J++) {
+            Externo = Externo + Fila + Limite * Paso;
+        }
+    }
+    IMPRIMIR("c: " + Externo);
+}FIN

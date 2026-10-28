@@ -1,0 +1,56 @@
+// opt_muertas.easy
+//
+// Banco de la fase F6 (asignaciones muertas). Casos:
+//
+//   a) X = 1 se pisa con X = 2 sin usarse: esta muerta
+//   b) Z = 0 se pisa en los dos caminos del SI: muerta en todos los caminos
+//   c) W = 5 se pisa en un camino pero se usa en el otro: esta VIVA
+//   d) un LEER cuyo valor no se usa no se elimina: consume una entrada
+//   e) Q = Y * 3 se pisa con Q = 4: el calculo entero sobra
+//
+// Salida esperada, con la entrada fija del simulador (cada LEER recibe
+// 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
+//
+//   a: 2
+//   b: 10
+//   c: 5
+//   d: 1
+//   e: 4
+//
+// Para ver el codigo:  easy Tests\optimizacion\opt_muertas.easy --codigo-optimizado
+
+INICIO{
+    // a)
+    ENT X = 1;
+    X = 2;
+    IMPRIMIR("a: " + X);
+
+    // b)
+    ENT Y = 0;
+    LEER(Y);
+    ENT Z = 0;
+    SI (Y > 2) {
+        Z = 10;
+    } SINO {
+        Z = 20;
+    }
+    IMPRIMIR("b: " + Z);
+
+    // c)
+    ENT W = 5;
+    SI (Y > 4) {
+        W = 6;
+    }
+    IMPRIMIR("c: " + W);
+
+    // d)
+    ENT Ignorado = 0;
+    LEER(Ignorado);
+    LEER(Y);
+    IMPRIMIR("d: " + Y);
+
+    // e)
+    ENT Q = Y * 3;
+    Q = 4;
+    IMPRIMIR("e: " + Q);
+}FIN

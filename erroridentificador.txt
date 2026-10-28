@@ -1,5 +1,0 @@
-INICIO{
-  // ERROR: El identificador 'miVariable' inicia con minúscula
-  ENT miVariable = 10; 
-  IMPRIMIR(miVariable);
-}FIN

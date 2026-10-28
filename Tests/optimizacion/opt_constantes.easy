@@ -1,0 +1,62 @@
+// opt_constantes.easy
+//
+// Banco de la fase F1 (ejecucion en tiempo de compilacion). Casos:
+//
+//   a) cadena de constantes: todo se puede calcular al compilar
+//   b) decimales, constantes CONST_ y ampliacion de enteros constantes
+//   c) concatenacion de textos literales
+//   d) comparacion constante: el salto se decide al compilar
+//   e) division entre cero en codigo que nunca se ejecuta: se avisa y se
+//      deja la instruccion como estaba
+//   f) un valor leido no es constante: lo que depende de el no se pliega,
+//      pero si la parte constante (3 * 4)
+//
+// Salida esperada, con la entrada fija del simulador (cada LEER recibe
+// 3, 5, 1, 0, 2, 4, en ese orden). Debe ser la misma antes y despues de optimizar:
+//
+//   a: 5 20 10
+//   b: 12.5664 2.5
+//   c: Hola mundo
+//   d: mayor
+//   f: 18
+//
+// Para ver el codigo:  easy Tests\optimizacion\opt_constantes.easy --codigo-optimizado
+
+INICIO{
+    DEC CONST_Pi = 3.1416;
+    ENT CONST_Base = 10;
+
+    // a)
+    ENT A = 2 + 3;
+    ENT B = A * 4;
+    ENT C = B - CONST_Base;
+    IMPRIMIR("a: " + A + " " + B + " " + C);
+
+    // b)
+    DEC Area = CONST_Pi * 2 * 2;
+    DEC Mitad = A / 2.0;
+    IMPRIMIR("b: " + Area + " " + Mitad);
+
+    // c)
+    TXT Saludo = "Hola" + " " + "mundo";
+    IMPRIMIR("c: " + Saludo);
+
+    // d)
+    SI (CONST_Base > 5) {
+        IMPRIMIR("d: mayor");
+    } SINO {
+        IMPRIMIR("d: menor");
+    }
+
+    // e)
+    SI (FALSO) {
+        ENT Malo = 1 / (2 - 2);
+        IMPRIMIR(Malo);
+    }
+
+    // f)
+    ENT Leido = 0;
+    LEER(Leido);
+    ENT Doble = Leido * 2 + (3 * 4);
+    IMPRIMIR("f: " + Doble);
+}FIN
